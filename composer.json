@@ -1,0 +1,82 @@
+{
+    "name": "siberfx/social-autopost",
+    "description": "Share your Laravel models to LinkedIn, X and Facebook, each switched on or off, and add more networks later.",
+    "keywords": ["laravel", "social", "linkedin", "x", "twitter", "facebook", "autopost", "share", "oauth"],
+    "homepage": "https://github.com/siberfx/social-autopost",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Selim Görmüş",
+            "email": "info@siberfx.com",
+            "homepage": "https://siberfx.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "guzzlehttp/guzzle": "^7.8",
+        "illuminate/auth": "^12.0|^13.0",
+        "illuminate/bus": "^12.0|^13.0",
+        "illuminate/cache": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/encryption": "^12.0|^13.0",
+        "illuminate/events": "^12.0|^13.0",
+        "illuminate/filesystem": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/log": "^12.0|^13.0",
+        "illuminate/mail": "^12.0|^13.0",
+        "illuminate/queue": "^12.0|^13.0",
+        "illuminate/routing": "^12.0|^13.0",
+        "illuminate/session": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/view": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.20",
+        "livewire/livewire": "^3.6|^4.0",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0"
+    },
+    "suggest": {
+        "livewire/livewire": "For the connection cards and share buttons (^3.6|^4.0)."
+    },
+    "autoload": {
+        "psr-4": {
+            "Siberfx\\SocialAutopost\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Siberfx\\SocialAutopost\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "lint": "pint --test",
+        "ci": ["@lint", "@analyse", "@test"]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Siberfx\\SocialAutopost\\SocialAutopostServiceProvider"
+            ],
+            "aliases": {
+                "Social": "Siberfx\\SocialAutopost\\Facades\\Social"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

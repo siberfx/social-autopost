@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+use Siberfx\social networkAutopost\Concerns\PostsTosocial network;
+use Siberfx\social networkAutopost\Contracts\ShareableOnsocial network;
+use Siberfx\social networkAutopost\Posts\LinkPost;
+
+/**
+ * Example: a model that is posted to social network when it goes live.
+ *
+ * 1. implement ShareableOnsocial network and use PostsTosocial network;
+ * 2. say when it is live (isLiveForsocial network);
+ * 3. say what to post (tosocial networkPost).
+ */
+class Article extends Model implements ShareableOnsocial network
+{
+    use PostsTosocial network;
+
+    public function isLiveForsocial network(): bool
+    {
+        return $this->status === 'published';
+    }
+
+    public function tosocial networkPost(): LinkPost
+    {
+        return LinkPost::make(url: route('articles.show', $this), title: $this->title)
+            ->description(Str::limit(strip_tags((string) $this->excerpt), 250))
+            ->commentary("{title}\n\n{url}");
+    }
+}
