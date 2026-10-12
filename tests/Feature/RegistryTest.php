@@ -12,7 +12,7 @@ use Siberfx\SocialAutopost\Tests\Fixtures\FakeNetwork;
 use Siberfx\SocialAutopost\Tests\Fixtures\Post;
 
 it('lists every configured network and only the switched-on ones as enabled', function () {
-    expect(Social::keys())->toContain('linkedin', 'x', 'facebook', 'fake', 'broken');
+    expect(Social::keys())->toContain('linkedin', 'x', 'facebook', 'instagram', 'tiktok', 'fake', 'broken');
     expect(Social::enabled()->all())->toBe([]);
 
     $this->network('fake');

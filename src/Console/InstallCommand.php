@@ -48,7 +48,7 @@ final class InstallCommand extends Command
         $this->newLine();
         $this->line('Next steps:');
         $this->line('  1. php artisan migrate');
-        $this->line('  2. Switch on the networks you use in .env, e.g. LINKEDIN_ENABLED=true, X_ENABLED=true, FACEBOOK_ENABLED=true');
+        $this->line('  2. Switch on the networks you use in .env, e.g. LINKEDIN_ENABLED=true, X_ENABLED=true, FACEBOOK_ENABLED=true, INSTAGRAM_ENABLED=true, TIKTOK_ENABLED=true');
         $this->line('  3. Set each network\'s credentials (see config/social-autopost.php), then register its redirect URI:');
 
         $enabled = $social->enabled();

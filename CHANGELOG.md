@@ -5,6 +5,16 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-12
+
+### Added
+- Instagram driver (Instagram API with Instagram Login): posts an image, or a video as a Reel, to a Business or Creator account through a media container, waiting for Instagram to process it. The 60-day token refreshes itself once fewer than 30 days remain. `INSTAGRAM_ENABLED`, `INSTAGRAM_AUTOPOST`, `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET`.
+- TikTok driver (Login Kit and Content Posting API, Direct Post): posts a video, or an image as a photo post, pulled from its URL. Follows the creator's privacy options and comment, duet and stitch settings; the day-long access token refreshes itself. `TIKTOK_ENABLED`, `TIKTOK_AUTOPOST`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_PRIVACY_LEVEL`.
+- `LinkPost::image()` and `LinkPost::video()`: the media Instagram and TikTok post. LinkedIn, X and Facebook ignore them. A post without media fails on Instagram and TikTok with a clear, non-retryable error.
+
+### Fixed
+- The published `ShareableModel` stub had broken class names (`Siberfx\social networkAutopost\…`) and would not compile.
+
 ## [1.0.0] - 2026-10-11
 
 ### Added

@@ -42,3 +42,23 @@ it('fills {title} with the title cut to 200 characters, the same as the title it
     expect($post->commentaryText())->toHaveLength(200)
         ->and($post->commentaryText())->toBe($post->title());
 });
+
+it('carries no media unless an image or video is given', function () {
+    $post = LinkPost::make('https://example.com/a', 'A');
+
+    expect($post->imageUrl())->toBeNull()
+        ->and($post->videoUrl())->toBeNull();
+});
+
+it('keeps an image and a video as absolute, encoded URLs without changing the original', function () {
+    $post = LinkPost::make('https://example.com/a', 'A');
+    $media = $post->image('https://cdn.example.com/kapak görsel.jpg')->video('https://cdn.example.com/a.mp4');
+
+    expect($media->imageUrl())->toBe('https://cdn.example.com/kapak%20g%C3%B6rsel.jpg')
+        ->and($media->videoUrl())->toBe('https://cdn.example.com/a.mp4')
+        ->and($post->imageUrl())->toBeNull();
+});
+
+it('refuses a relative image or video URL', function (string $method) {
+    LinkPost::make('https://example.com/a', 'A')->{$method}('/storage/a.jpg');
+})->with(['image', 'video'])->throws(InvalidArgumentException::class);

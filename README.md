@@ -1,6 +1,6 @@
 # Social Autopost for Laravel
 
-Share your Eloquent models to LinkedIn, X and Facebook, each one switched on or off on its own,
+Share your Eloquent models to LinkedIn, X, Facebook, Instagram and TikTok, each one switched on or off on its own,
 and add more networks later with one class and one config entry.
 
 - Each network has two switches: **enabled** (on or off) and **autopost** (post automatically when a model goes live).
@@ -25,6 +25,8 @@ LINKEDIN_ENABLED=true
 LINKEDIN_AUTOPOST=true     # post automatically when a model goes live
 X_ENABLED=false
 FACEBOOK_ENABLED=false
+INSTAGRAM_ENABLED=false    # Instagram and TikTok need an image or video, see below
+TIKTOK_ENABLED=false
 ```
 
 ```php
@@ -72,7 +74,7 @@ Every network is listed in `config/social-autopost.php` under `networks`:
 | `enabled` | `LINKEDIN_ENABLED` | `false` | Off: hidden everywhere, routes answer 404, sharing and commands refuse it. |
 | `autopost` | `LINKEDIN_AUTOPOST` | `false` | On: queued automatically when a live model is saved. Manual sharing needs no switch. |
 
-The env names are `LINKEDIN_`, `X_` and `FACEBOOK_` followed by `ENABLED` or `AUTOPOST`.
+The env names are `LINKEDIN_`, `X_`, `FACEBOOK_`, `INSTAGRAM_` and `TIKTOK_` followed by `ENABLED` or `AUTOPOST`.
 A network is only used when it is both switched on and connected.
 
 ```php
@@ -102,6 +104,8 @@ your URL differs.
 | LinkedIn | developers.linkedin.com → your app | `https://example.com/social/linkedin/callback` | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | Products "Share on LinkedIn" and "Sign In with LinkedIn using OpenID Connect" |
 | X | developer.x.com → your app → User authentication settings (OAuth 2.0) | `https://example.com/social/x/callback` | `X_CLIENT_ID`, `X_CLIENT_SECRET` (optional for a PKCE-only public app) | `tweet.read tweet.write users.read offline.access` (set by the package) |
 | Facebook | developers.facebook.com → your app → Facebook Login | `https://example.com/social/facebook/callback` | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; the account must manage the Page |
+| Instagram | developers.facebook.com → your app → Instagram → API setup with Instagram login → Business login settings | `https://example.com/social/instagram/callback` | `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET` (the **Instagram** app ID and secret, not the Facebook ones) | `instagram_business_basic`, `instagram_business_content_publish`; a Business or Creator account |
+| TikTok | developers.tiktok.com → your app → Login Kit and Content Posting API (Direct Post on) | `https://example.com/social/tiktok/callback` | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `user.info.basic`, `video.publish`; verify the domain your media is served from |
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
 `LINKEDIN_API_VERSION`, `FACEBOOK_PAGE_ID` (the Page to post to; the first managed Page when
@@ -110,6 +114,38 @@ empty), `FACEBOOK_API_VERSION`.
 X text is composed to 280 characters, counting every URL as 23. LinkedIn escapes characters it
 reserves for mentions and hashtags. Facebook sends the link in its own field and takes the preview
 from the page's Open Graph tags.
+
+### Instagram and TikTok: posts need media
+
+Instagram and TikTok post images and videos, not links. Give the post a public URL the network can
+download; the commentary becomes the caption. LinkedIn, X and Facebook ignore the media.
+
+```php
+public function toSocialPost(): LinkPost
+{
+    return LinkPost::make(route('blog.show', $this), $this->title)
+        ->commentary("{title}\n\nRead more: {url}")
+        ->image($this->cover_url)        // Instagram: JPEG. TikTok: a photo post.
+        ->video($this->clip_url);        // Instead of the image when set: a Reel / a TikTok video.
+}
+```
+
+A post without media fails on these two networks with a clear message and is not retried; the
+others still post. Links in captions are not clickable on either network.
+
+- **Instagram** posts through a media container. It waits for Instagram to process the media
+  (`processing_checks` × `processing_interval` seconds, default 10 × 5); a video that takes longer
+  is retried by the job, and nothing posts twice. The token lasts 60 days and refreshes itself
+  once fewer than 30 remain, whenever the status is read or a post goes out. Instagram has no API
+  to revoke access: disconnecting forgets it here, and the account owner removes the app under
+  Instagram → Settings → Apps and websites. `INSTAGRAM_API_VERSION` defaults to `v25.0`.
+- **TikTok** pulls the media from its URL, so verify that domain or URL prefix in the TikTok
+  developer portal. The post follows the creator's own settings: comments, duets and stitches stay
+  off when they turned them off. `TIKTOK_PRIVACY_LEVEL` is `PUBLIC_TO_EVERYONE` (default),
+  `MUTUAL_FOLLOW_FRIENDS`, `FOLLOWER_OF_CREATOR` or `SELF_ONLY`. **Until TikTok audits your app,
+  only `SELF_ONLY` (private) posts are allowed**; the error says so and names the allowed levels.
+  TikTok returns a publish id, not the video's id, so its notifications carry no link. The access
+  token lasts a day and refreshes itself; the connection lasts a year.
 
 ## Connecting
 

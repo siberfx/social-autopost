@@ -4,30 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Siberfx\social networkAutopost\Concerns\PostsTosocial network;
-use Siberfx\social networkAutopost\Contracts\ShareableOnsocial network;
-use Siberfx\social networkAutopost\Posts\LinkPost;
+use Siberfx\SocialAutopost\Concerns\PostsToSocial;
+use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
+use Siberfx\SocialAutopost\Posts\LinkPost;
 
 /**
- * Example: a model that is posted to social network when it goes live.
+ * Example: a model that is posted to social networks when it goes live.
  *
- * 1. implement ShareableOnsocial network and use PostsTosocial network;
- * 2. say when it is live (isLiveForsocial network);
- * 3. say what to post (tosocial networkPost).
+ * 1. implement ShareableOnSocial and use PostsToSocial;
+ * 2. say when it is live (isLiveForSocial);
+ * 3. say what to post (toSocialPost).
  */
-class Article extends Model implements ShareableOnsocial network
+class Article extends Model implements ShareableOnSocial
 {
-    use PostsTosocial network;
+    use PostsToSocial;
 
-    public function isLiveForsocial network(): bool
+    public function isLiveForSocial(): bool
     {
         return $this->status === 'published';
     }
 
-    public function tosocial networkPost(): LinkPost
+    public function toSocialPost(): LinkPost
     {
-        return LinkPost::make(url: route('articles.show', $this), title: $this->title)
+        $post = LinkPost::make(url: route('articles.show', $this), title: $this->title)
             ->description(Str::limit(strip_tags((string) $this->excerpt), 250))
             ->commentary("{title}\n\n{url}");
+
+        // Instagram and TikTok post media, not links: give them a public image or video.
+        return $this->cover_url !== null ? $post->image($this->cover_url) : $post;
     }
 }

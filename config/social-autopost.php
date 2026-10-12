@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Siberfx\SocialAutopost\Networks\Facebook\FacebookNetwork;
+use Siberfx\SocialAutopost\Networks\Instagram\InstagramNetwork;
 use Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork;
+use Siberfx\SocialAutopost\Networks\TikTok\TikTokNetwork;
 use Siberfx\SocialAutopost\Networks\X\XNetwork;
 use Siberfx\SocialAutopost\Notifications\Channels\MailChannel;
 use Siberfx\SocialAutopost\Notifications\Channels\SlackChannel;
@@ -67,6 +69,41 @@ return [
             'api_version' => env('FACEBOOK_API_VERSION', 'v25.0'),
             'post_url' => 'https://www.facebook.com/{id}',
             'brand' => ['color' => '#1877F2'],
+        ],
+
+        // Instagram and TikTok post media, not links: give the LinkPost an
+        // ->image() or ->video(). The commentary becomes the caption.
+
+        'instagram' => [
+            'enabled' => (bool) env('INSTAGRAM_ENABLED', false),
+            'autopost' => (bool) env('INSTAGRAM_AUTOPOST', false),
+            'class' => InstagramNetwork::class,
+            // Meta app → Instagram → API setup with Instagram login: the Instagram app ID and secret.
+            'client_id' => env('INSTAGRAM_CLIENT_ID'),
+            'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
+            'redirect_uri' => env('INSTAGRAM_REDIRECT_URI'),
+            'scopes' => ['instagram_business_basic', 'instagram_business_content_publish'],
+            'api_version' => env('INSTAGRAM_API_VERSION', 'v25.0'),
+            // Instagram downloads and processes the media before it can be published:
+            // check this many times, this many seconds apart, then let the job retry.
+            'processing_checks' => 10,
+            'processing_interval' => 5,
+            'brand' => ['color' => '#E4405F'],
+        ],
+
+        'tiktok' => [
+            'enabled' => (bool) env('TIKTOK_ENABLED', false),
+            'autopost' => (bool) env('TIKTOK_AUTOPOST', false),
+            'class' => TikTokNetwork::class,
+            // developers.tiktok.com → your app: Login Kit and Content Posting API (Direct Post).
+            'client_key' => env('TIKTOK_CLIENT_KEY'),
+            'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+            'redirect_uri' => env('TIKTOK_REDIRECT_URI'),
+            'scopes' => ['user.info.basic', 'video.publish'],
+            // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR or SELF_ONLY.
+            // Until TikTok audits your app, only SELF_ONLY (private) posts are allowed.
+            'privacy_level' => env('TIKTOK_PRIVACY_LEVEL', 'PUBLIC_TO_EVERYONE'),
+            'brand' => ['color' => '#000000'],
         ],
 
     ],

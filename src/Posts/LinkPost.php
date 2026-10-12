@@ -6,7 +6,10 @@ namespace Siberfx\SocialAutopost\Posts;
 
 use InvalidArgumentException;
 
-/** What a model wants posted: a link with its preview, plus the post text. */
+/**
+ * What a model wants posted: a link with its preview, plus the post text, and
+ * optionally an image or a video for the networks that post media (Instagram, TikTok).
+ */
 final class LinkPost
 {
     private const DEFAULT_COMMENTARY = "{title}\n\n{url}";
@@ -14,6 +17,10 @@ final class LinkPost
     private string $description = '';
 
     private string $commentary = self::DEFAULT_COMMENTARY;
+
+    private ?string $image = null;
+
+    private ?string $video = null;
 
     private function __construct(
         private readonly string $url,
@@ -23,14 +30,58 @@ final class LinkPost
     /** @throws InvalidArgumentException When the URL is not an absolute http(s) URL. */
     public static function make(string $url, string $title): self
     {
+        return new self(self::absolute($url, 'Posts need'), $title);
+    }
+
+    /**
+     * A public image the network downloads itself: Instagram posts it (JPEG),
+     * TikTok posts it as a photo. Networks that post links ignore it.
+     *
+     * @throws InvalidArgumentException When the URL is not an absolute http(s) URL.
+     */
+    public function image(string $url): self
+    {
+        $copy = clone $this;
+        $copy->image = self::absolute($url, 'Images need');
+
+        return $copy;
+    }
+
+    /**
+     * A public video the network downloads itself: Instagram posts it as a Reel,
+     * TikTok as a video. Used instead of the image when both are set.
+     *
+     * @throws InvalidArgumentException When the URL is not an absolute http(s) URL.
+     */
+    public function video(string $url): self
+    {
+        $copy = clone $this;
+        $copy->video = self::absolute($url, 'Videos need');
+
+        return $copy;
+    }
+
+    public function imageUrl(): ?string
+    {
+        return $this->image;
+    }
+
+    public function videoUrl(): ?string
+    {
+        return $this->video;
+    }
+
+    /** @throws InvalidArgumentException */
+    private static function absolute(string $url, string $who): string
+    {
         $normalised = self::normalise($url);
         $scheme = strtolower((string) parse_url($normalised, PHP_URL_SCHEME));
 
         if (! in_array($scheme, ['http', 'https'], true) || filter_var($normalised, FILTER_VALIDATE_URL) === false) {
-            throw new InvalidArgumentException("Posts need an absolute http(s) URL, got [{$url}].");
+            throw new InvalidArgumentException("{$who} an absolute http(s) URL, got [{$url}].");
         }
 
-        return new self($normalised, $title);
+        return $normalised;
     }
 
     /**
