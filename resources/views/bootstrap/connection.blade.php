@@ -1,14 +1,17 @@
 @php
     $badge = $presenter->badge();
     $tone = ['success' => 'success', 'warning' => 'warning', 'danger' => 'danger', 'neutral' => 'secondary'][$badge['tone']];
-    $confirmText = "Disconnect {$label}? The connection is revoked and nothing posts there until you connect again.";
 @endphp
 <div {{ ($attributes ?? new \Illuminate\View\ComponentAttributeBag)->class('card shadow-sm') }}>
     <div class="card-body">
         <h5 class="card-title d-flex align-items-center gap-2">
-            <span style="width:1.25rem;height:1.25rem;color:{{ $brand['color'] }}">{!! $brand['logo'] !!}</span>
+            <span class="d-inline-flex flex-shrink-0" style="width:1.25rem;height:1.25rem;color:{{ $brand['color'] }}">{!! $brand['logo'] !!}</span>
             {{ $label }}
         </h5>
+
+        @if ($hint ?? null)
+            <p class="small text-muted mt-n1">{{ $hint }}</p>
+        @endif
 
         @include('social-autopost::bootstrap.flash', ['flash' => $flash])
 

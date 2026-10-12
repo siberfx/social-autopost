@@ -28,6 +28,8 @@ final class ConnectionViewData
             'brand' => NetworkBrand::for($network),
             'connection' => $connection,
             'presenter' => new ConnectionPresenter($connection, $label),
+            'hint' => NetworkNotes::hint($network),
+            'confirmText' => NetworkNotes::confirmDisconnect($network, $label),
             'canManage' => Gate::allows(SocialAutopostServiceProvider::ABILITY),
             'connectUrl' => route($routes.'redirect', ['network' => $network]),
             'disconnectUrl' => route($routes.'connection.destroy', ['network' => $network]),

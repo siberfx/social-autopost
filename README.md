@@ -159,6 +159,55 @@ Social::connection('x')->name;      // the account name, from the network
 Social::disconnect('x');            // revokes at the network, then forgets it
 ```
 
+## A ready-made connections page
+
+```bash
+php artisan social:page                        # standalone page, configured theme
+php artisan social:page --layout=layouts.app   # inside your layout's @section('content')
+php artisan social:page --livewire --theme=bootstrap --view=admin.social
+```
+
+The command writes `resources/views/social/connections.blade.php`. The page has one card for every
+enabled network and a "Developer setup" table with each network's callback URL and auto-post
+switch. Add a route for it and send people back to it after connecting:
+
+```php
+Route::view('/admin/social', 'social.connections')
+    ->middleware(['auth', 'can:manage-social-autopost'])->name('social.connections');
+```
+
+```php
+// config/social-autopost.php
+'routes' => ['after_connect' => '/admin/social', /* … */],
+```
+
+Without `--layout`, the page is standalone and loads Tailwind or Bootstrap from a CDN. After that,
+the page is your file to change.
+
+Cards show a short note where a network needs one. Instagram and TikTok say a post needs media, and
+TikTok mentions private-only posting until it audits your app. Set `networks.{key}.hint` to
+replace a note, or `''` to hide it. Instagram cannot be revoked through its API, so its disconnect
+question and message tell people where to remove the app. Use `networks.{key}.disconnect_note`
+for your own network.
+
+## React and Vue
+
+The cards and share buttons are also available as data, for pages built in React or Vue:
+
+```php
+use Siberfx\SocialAutopost\Support\SocialProps;
+
+Inertia::render('SocialConnections', [
+    'connections' => SocialProps::connections(),   // one card per enabled network, no tokens
+    'flash' => SocialProps::flash(),               // the message after connecting
+    'share' => SocialProps::share($post),          // a signed share button for one model
+]);
+```
+
+Without Inertia, `GET /social/connections` returns the same cards as JSON. Ready-to-copy
+components, in TypeScript with Tailwind, are in [`examples/`](examples/README.md):
+`SocialConnections` and `ShareButton` for both React and Vue.
+
 ## Auto-post
 
 When a model is saved and `isLiveForSocial()` turns true, the observer queues one job per network
@@ -176,6 +225,7 @@ php artisan queue:work --queue=default
 | Command | Does |
 |---|---|
 | `social:install [--theme=] [--headless]` | Publishes config and migrations, sets the UI theme, prints the redirect URI of each enabled network. |
+| `social:page [--theme=] [--layout=] [--section=] [--livewire] [--view=] [--force]` | Writes a connections page with a card for every enabled network. |
 | `social:status` | Every network: enabled, auto-post, connected, status. |
 | `social:disconnect {network} [--force]` | Revokes and forgets one connection. Refuses a switched-off network. |
 | `social:share {network} {model} {id} [--force]` | Shares one model to one network now. |
@@ -244,6 +294,7 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `networks.{key}.enabled`, `.autopost`, `.class` | The switches and the driver. |
 | `networks.{key}.*` | The network's own keys (credentials, API version, page id…). |
 | `networks.{key}.post_url`, `.brand` | Notification links and the UI colour and logo. |
+| `networks.{key}.hint`, `.disconnect_note` | The card note, and what disconnecting means when the network cannot revoke (`''` hides). |
 | `connection_store` | Where connections are kept (encrypted, `DatabaseConnectionStore` by default). |
 | `routes` | `enabled`, `prefix` (`social`), `name`, `middleware`, `after_connect`. |
 | `autopost` | `in_console`, `queue_connection`, `queue`. |

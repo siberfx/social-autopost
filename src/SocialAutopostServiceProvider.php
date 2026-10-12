@@ -11,6 +11,7 @@ use Illuminate\Support\ServiceProvider;
 use Siberfx\SocialAutopost\Console\CheckTokenCommand;
 use Siberfx\SocialAutopost\Console\DisconnectCommand;
 use Siberfx\SocialAutopost\Console\InstallCommand;
+use Siberfx\SocialAutopost\Console\PageCommand;
 use Siberfx\SocialAutopost\Console\ShareCommand;
 use Siberfx\SocialAutopost\Console\StatusCommand;
 use Siberfx\SocialAutopost\Console\TestNotificationCommand;
@@ -74,6 +75,7 @@ final class SocialAutopostServiceProvider extends ServiceProvider
 
             $this->commands([
                 InstallCommand::class,
+                PageCommand::class,
                 StatusCommand::class,
                 DisconnectCommand::class,
                 ShareCommand::class,

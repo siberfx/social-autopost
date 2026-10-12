@@ -41,9 +41,23 @@ final class NetworkBrand
         return self::LOGOS[$key] ?? self::GENERIC_LOGO;
     }
 
-    /** @return array{color: string, logo: string} */
+    /** @return array{color: string, logo: string, dark: bool} */
     public static function for(string $key): array
     {
-        return ['color' => self::color($key), 'logo' => self::logo($key)];
+        $color = self::color($key);
+
+        return ['color' => $color, 'logo' => self::logo($key), 'dark' => self::isDark($color)];
+    }
+
+    /** Whether the colour is too dark to see on a dark background (X and TikTok are black), so dark themes invert the logo. */
+    public static function isDark(string $color): bool
+    {
+        if (preg_match('/^#?([0-9a-f]{6})$/i', $color, $match) !== 1) {
+            return false;
+        }
+
+        [$red, $green, $blue] = array_map('hexdec', str_split($match[1], 2));
+
+        return (0.2126 * $red + 0.7152 * $green + 0.0722 * $blue) / 255 < 0.2;
     }
 }

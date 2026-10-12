@@ -5,6 +5,18 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-12
+
+### Added
+- `php artisan social:page` writes a ready-made "Social connections" page, with a card for every enabled network and the callback URLs to register. It can be standalone or use your layout (`--layout`), and can use Blade or Livewire cards (`--livewire`).
+- React and Vue support: `GET /social/connections` returns every enabled network's card as JSON, and `SocialProps::connections()`, `::share($model, $network)` and `::flash()` build the same data as Inertia props. Ready-to-copy TypeScript components (`SocialConnections`, `ShareButton`) for React and Vue are in `examples/`.
+- Connection cards show a short setup note where a network needs one: Instagram and TikTok posts need media, and TikTok only allows private posts until it audits your app. Override with `networks.{key}.hint`, or set `''` to hide it.
+
+### Fixed
+- Disconnecting Instagram no longer promises a revocation Instagram cannot make. The question and the message now say to remove the app under Instagram → Settings → Apps and websites (`networks.{key}.disconnect_note` for other networks).
+- Black logos (X, TikTok) are inverted in dark mode on the Tailwind card, so they no longer disappear.
+- The Bootstrap card's logo keeps its size outside a flex container.
+
 ## [1.1.0] - 2026-10-12
 
 ### Added

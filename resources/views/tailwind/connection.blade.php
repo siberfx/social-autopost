@@ -6,13 +6,16 @@
         'danger' => 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950 dark:text-red-300',
         'neutral' => 'bg-gray-50 text-gray-600 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-300',
     ][$badge['tone']];
-    $confirmText = "Disconnect {$label}? The connection is revoked and nothing posts there until you connect again.";
 @endphp
 <div {{ ($attributes ?? new \Illuminate\View\ComponentAttributeBag)->class('space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900') }}>
     <div class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-        <span class="size-5" style="color: {{ $brand['color'] }}">{!! $brand['logo'] !!}</span>
+        <span class="size-5 shrink-0 {{ ($brand['dark'] ?? false) ? 'dark:invert' : '' }}" style="color: {{ $brand['color'] }}">{!! $brand['logo'] !!}</span>
         {{ $label }}
     </div>
+
+    @if ($hint ?? null)
+        <p class="-mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $hint }}</p>
+    @endif
 
     @include('social-autopost::tailwind.flash', ['flash' => $flash])
 

@@ -12,6 +12,8 @@ use Siberfx\SocialAutopost\Exceptions\ConnectionFailed;
 use Siberfx\SocialAutopost\Exceptions\NetworkDisabled;
 use Siberfx\SocialAutopost\Exceptions\UnknownNetwork;
 use Siberfx\SocialAutopost\SocialManager;
+use Siberfx\SocialAutopost\Support\NetworkNotes;
+use Siberfx\SocialAutopost\Support\SocialProps;
 use Siberfx\SocialAutopost\Support\StatusMessages;
 use Siberfx\SocialAutopost\Support\Ui;
 
@@ -19,6 +21,15 @@ use Siberfx\SocialAutopost\Support\Ui;
 final class ConnectionController extends Controller
 {
     public function __construct(private readonly SocialManager $social) {}
+
+    /** Every enabled network's card as JSON, for React, Vue or any other front end. Pass ?social=…&state=… on to get the callback message. */
+    public function index(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => SocialProps::connections(),
+            'flash' => SocialProps::flash($request),
+        ]);
+    }
 
     public function redirect(string $network): RedirectResponse
     {
@@ -50,9 +61,7 @@ final class ConnectionController extends Controller
 
         $revoked = $this->social->disconnect($network);
         $label = $this->social->network($network)->label();
-        $message = $revoked
-            ? "{$label} disconnected."
-            : "{$label} disconnected here, but {$label} did not confirm revoking the connection.";
+        $message = NetworkNotes::disconnected($network, $label, $revoked);
 
         if (! $request->expectsJson() && Ui::enabled()) {
             return back()->with(StatusMessages::FLASH_KEY, ['type' => 'success', 'message' => $message]);

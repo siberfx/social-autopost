@@ -11,6 +11,7 @@ use Livewire\Component;
 use Siberfx\SocialAutopost\SocialAutopostServiceProvider;
 use Siberfx\SocialAutopost\SocialManager;
 use Siberfx\SocialAutopost\Support\ConnectionViewData;
+use Siberfx\SocialAutopost\Support\NetworkNotes;
 use Siberfx\SocialAutopost\Support\StatusMessages;
 use Siberfx\SocialAutopost\Support\Theme;
 
@@ -36,9 +37,7 @@ final class ConnectionCard extends Component
         $label = $social->network($this->network)->label();
         $revoked = $social->disconnect($this->network);
 
-        $this->flash = ['type' => 'success', 'message' => $revoked
-            ? "{$label} disconnected."
-            : "{$label} disconnected here, but {$label} did not confirm revoking the connection."];
+        $this->flash = ['type' => 'success', 'message' => NetworkNotes::disconnected($this->network, $label, $revoked)];
     }
 
     public function render(SocialManager $social): View

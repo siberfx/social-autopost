@@ -1,0 +1,52 @@
+@php
+    // Every network switched on in config/social-autopost.php, each with its card.
+    $social = app(\Siberfx\SocialAutopost\SocialManager::class);
+    $networks = $social->enabled();
+    $callback = fn (string $key): string => config("social-autopost.networks.{$key}.redirect_uri")
+        ?: route(config('social-autopost.routes.name', 'social-autopost.').'callback', ['network' => $key]);
+@endphp
+<div class="mx-auto max-w-5xl space-y-8 px-4 py-10">
+    <header>
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Social connections</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Connect the accounts your content is shared to. A connected network posts new content automatically when its auto-post switch is on.
+        </p>
+    </header>
+
+    @if ($networks->isEmpty())
+        <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
+            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">No network is switched on</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Add <code>LINKEDIN_ENABLED=true</code>, <code>X_ENABLED=true</code>, <code>FACEBOOK_ENABLED=true</code>,
+                <code>INSTAGRAM_ENABLED=true</code> or <code>TIKTOK_ENABLED=true</code> to your .env.
+            </p>
+        </div>
+    @else
+        <div class="grid gap-4 md:grid-cols-2">
+            @foreach ($networks as $network)
+                %%CARD%%
+            @endforeach
+        </div>
+
+        <details class="rounded-xl border border-gray-200 p-5 text-sm dark:border-gray-700">
+            <summary class="cursor-pointer font-semibold text-gray-900 dark:text-gray-100">Developer setup</summary>
+            <p class="mt-3 text-gray-500 dark:text-gray-400">Register each callback URL in the network's developer portal.</p>
+            <div class="mt-3 overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="text-xs uppercase text-gray-500 dark:text-gray-400">
+                        <tr><th class="py-2 pr-4">Network</th><th class="py-2 pr-4">Callback URL</th><th class="py-2">Auto-post</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        @foreach ($networks as $network)
+                            <tr>
+                                <td class="py-2 pr-4 font-medium text-gray-900 dark:text-gray-100">{{ $social->network($network)->label() }}</td>
+                                <td class="py-2 pr-4"><code class="break-all text-gray-700 dark:text-gray-300">{{ $callback($network) }}</code></td>
+                                <td class="py-2 text-gray-700 dark:text-gray-300">{{ $social->autopostEnabled($network) ? 'On' : 'Off' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    @endif
+</div>

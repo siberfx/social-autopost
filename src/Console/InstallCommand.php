@@ -65,7 +65,7 @@ final class InstallCommand extends Command
         $this->line("     Gate::define('manage-social-autopost', fn (User \$user) => \$user->is_admin);");
         $this->line($headless
             ? '  5. Send your admins to route(\'social-autopost.redirect\', \'linkedin\') to connect; share with Social::share($model) or the JSON endpoints'
-            : '  5. Put <x-social-autopost::connection network="linkedin" /> on your admin settings page, one per network');
+            : '  5. Run php artisan social:page for a ready-made connections page, or put <x-social-autopost::connection network="linkedin" /> on your own page, one per network');
         $this->line('  6. Optional: Telegram, Slack or email messages on each post, see "notifications" in config/social-autopost.php');
 
         if ($theme === 'tailwind') {

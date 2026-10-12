@@ -20,6 +20,10 @@ Route::group([
         ->middleware(ValidateSignature::class)
         ->name('share');
 
+    // Every enabled network's card as JSON, for React, Vue or any other front end.
+    Route::get('connections', [ConnectionController::class, 'index'])
+        ->name('connections.index');
+
     Route::get('{network}/redirect', [ConnectionController::class, 'redirect'])
         ->where('network', $network)
         ->name('redirect');

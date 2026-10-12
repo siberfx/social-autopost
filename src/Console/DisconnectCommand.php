@@ -6,6 +6,7 @@ namespace Siberfx\SocialAutopost\Console;
 
 use Illuminate\Console\Command;
 use Siberfx\SocialAutopost\SocialManager;
+use Siberfx\SocialAutopost\Support\NetworkNotes;
 
 final class DisconnectCommand extends Command
 {
@@ -37,9 +38,13 @@ final class DisconnectCommand extends Command
 
         $revoked = $social->disconnect($key);
 
-        $revoked
-            ? $this->components->info("Disconnected. {$label} revoked the connection.")
-            : $this->components->warn("Disconnected here, but {$label} did not confirm revoking the connection.");
+        $note = NetworkNotes::disconnectNote($key);
+
+        match (true) {
+            $revoked => $this->components->info("Disconnected. {$label} revoked the connection."),
+            $note !== null => $this->components->warn("Disconnected here. {$note}"),
+            default => $this->components->warn("Disconnected here, but {$label} did not confirm revoking the connection."),
+        };
 
         return self::SUCCESS;
     }

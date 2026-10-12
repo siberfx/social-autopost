@@ -1,0 +1,52 @@
+@php
+    // Every network switched on in config/social-autopost.php, each with its card.
+    $social = app(\Siberfx\SocialAutopost\SocialManager::class);
+    $networks = $social->enabled();
+    $callback = fn (string $key): string => config("social-autopost.networks.{$key}.redirect_uri")
+        ?: route(config('social-autopost.routes.name', 'social-autopost.').'callback', ['network' => $key]);
+@endphp
+<div class="container py-5">
+    <header class="mb-4">
+        <h1 class="h3">Social connections</h1>
+        <p class="text-muted mb-0">
+            Connect the accounts your content is shared to. A connected network posts new content automatically when its auto-post switch is on.
+        </p>
+    </header>
+
+    @if ($networks->isEmpty())
+        <div class="border border-2 border-dashed rounded p-5 text-center">
+            <p class="fw-semibold mb-1">No network is switched on</p>
+            <p class="text-muted mb-0">
+                Add <code>LINKEDIN_ENABLED=true</code>, <code>X_ENABLED=true</code>, <code>FACEBOOK_ENABLED=true</code>,
+                <code>INSTAGRAM_ENABLED=true</code> or <code>TIKTOK_ENABLED=true</code> to your .env.
+            </p>
+        </div>
+    @else
+        <div class="row g-3">
+            @foreach ($networks as $network)
+                <div class="col-md-6">
+                    %%CARD%%
+                </div>
+            @endforeach
+        </div>
+
+        <details class="card card-body mt-4">
+            <summary class="fw-semibold">Developer setup</summary>
+            <p class="text-muted mt-3">Register each callback URL in the network's developer portal.</p>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Network</th><th>Callback URL</th><th>Auto-post</th></tr></thead>
+                    <tbody>
+                        @foreach ($networks as $network)
+                            <tr>
+                                <td class="fw-semibold">{{ $social->network($network)->label() }}</td>
+                                <td><code class="text-break">{{ $callback($network) }}</code></td>
+                                <td>{{ $social->autopostEnabled($network) ? 'On' : 'Off' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    @endif
+</div>
