@@ -5,6 +5,11 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-12
+
+### Changed
+- README: the "React and Vue" section now walks through copying the components and building `SocialProps` on the server, with React and Vue usage for a connections page and share buttons, the non-Inertia variant, and the JSON each card returns.
+
 ## [1.1.1] - 2026-10-12
 
 ### Added

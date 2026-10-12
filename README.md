@@ -192,21 +192,129 @@ for your own network.
 
 ## React and Vue
 
-The cards and share buttons are also available as data, for pages built in React or Vue:
+The cards and share buttons are also available as data, for pages built in React or Vue. Ready-to-copy
+components, in TypeScript with Tailwind, are in [`examples/`](examples/README.md): `SocialConnections`
+(one card per enabled network) and `ShareButton` (shares one model now), for both React and Vue.
 
-```php
-use Siberfx\SocialAutopost\Support\SocialProps;
+**1. Copy the components into your app:**
 
-Inertia::render('SocialConnections', [
-    'connections' => SocialProps::connections(),   // one card per enabled network, no tokens
-    'flash' => SocialProps::flash(),               // the message after connecting
-    'share' => SocialProps::share($post),          // a signed share button for one model
-]);
+```bash
+# React
+cp -r vendor/siberfx/social-autopost/examples/react resources/js/components/social
+# Vue
+cp -r vendor/siberfx/social-autopost/examples/vue resources/js/components/social
 ```
 
-Without Inertia, `GET /social/connections` returns the same cards as JSON. Ready-to-copy
-components, in TypeScript with Tailwind, are in [`examples/`](examples/README.md):
-`SocialConnections` and `ShareButton` for both React and Vue.
+**2. Build the props on the server** with `SocialProps`. It never includes tokens, and share URLs are
+signed for their model:
+
+```php
+use Inertia\Inertia;
+use Siberfx\SocialAutopost\Support\SocialProps;
+
+Route::middleware(['auth', 'can:manage-social-autopost'])->group(function () {
+    Route::get('/admin/social', fn () => Inertia::render('SocialConnections', [
+        'connections' => SocialProps::connections(),   // one card per enabled network
+        'flash' => SocialProps::flash(),               // the message after connecting
+    ]));
+
+    Route::get('/admin/posts/{post}', fn (Post $post) => Inertia::render('Posts/Show', [
+        'post' => $post,
+        'share' => SocialProps::share($post),               // every enabled, connected network
+        'shareOnTikTok' => SocialProps::share($post, 'tiktok'),
+    ]));
+});
+```
+
+Set `routes.after_connect` to `'/admin/social'`, so the network sends people back to the page after
+they connect.
+
+**3a. Use them in React:**
+
+```tsx
+// resources/js/pages/SocialConnections.tsx
+import SocialConnections from '@/components/social/SocialConnections';
+import type { Flash, SocialConnection } from '@/components/social/social';
+
+export default function Page({ connections, flash }: { connections: SocialConnection[]; flash: Flash | null }) {
+    return <SocialConnections connections={connections} flash={flash} />;
+}
+```
+
+```tsx
+// resources/js/pages/Posts/Show.tsx
+import ShareButton from '@/components/social/ShareButton';
+import type { SocialShare } from '@/components/social/social';
+
+export default function Show({ post, share, shareOnTikTok }: { post: { title: string }; share: SocialShare; shareOnTikTok: SocialShare }) {
+    return (
+        <article>
+            <h1>{post.title}</h1>
+            <ShareButton share={share} />
+            <ShareButton share={shareOnTikTok} />
+        </article>
+    );
+}
+```
+
+**3b. Use them in Vue:**
+
+```vue
+<!-- resources/js/pages/SocialConnections.vue -->
+<script setup lang="ts">
+import SocialConnections from '@/components/social/SocialConnections.vue';
+import type { Flash, SocialConnection } from '@/components/social/social';
+
+defineProps<{ connections: SocialConnection[]; flash: Flash | null }>();
+</script>
+
+<template>
+    <SocialConnections :connections="connections" :flash="flash" />
+</template>
+```
+
+```vue
+<!-- resources/js/pages/Posts/Show.vue -->
+<script setup lang="ts">
+import ShareButton from '@/components/social/ShareButton.vue';
+import type { SocialShare } from '@/components/social/social';
+
+defineProps<{ post: { title: string }; share: SocialShare; shareOnTikTok: SocialShare }>();
+</script>
+
+<template>
+    <article>
+        <h1>{{ post.title }}</h1>
+        <ShareButton :share="share" />
+        <ShareButton :share="shareOnTikTok" />
+    </article>
+</template>
+```
+
+**Without Inertia** (a React or Vue app served by the same Laravel app), render the page component
+without props: `<SocialConnections />`. It loads the cards from `GET /social/connections` itself.
+The share button still needs its signed URL from the server, so include `SocialProps::share($post)`
+in the JSON your page already loads for that model. Each card looks like this:
+
+```json
+{
+    "network": "instagram",
+    "label": "Instagram",
+    "brand": { "color": "#E4405F", "logo": "<svg …>", "dark": false },
+    "hint": "Posts need an image or a video. Connect an Instagram Business or Creator account.",
+    "autopost": true,
+    "connection": { "connected": true, "status": "active", "name": "siberfx", "expires_at": "2026-12-11T12:00:00+00:00", "days_left": 59, "…": "…" },
+    "badge": { "label": "Connected", "tone": "success" },
+    "needs_reconnect": false,
+    "confirm_disconnect": "Disconnect Instagram? …",
+    "can_manage": true,
+    "urls": { "connect": "https://example.com/social/instagram/redirect", "disconnect": "https://example.com/social/instagram/connection" }
+}
+```
+
+Connecting is a full page load (`urls.connect` is a plain link). Disconnecting and sharing are
+JSON requests that send the session cookie and `XSRF-TOKEN`. See [`examples/README.md`](examples/README.md)
+for the details.
 
 ## Auto-post
 
