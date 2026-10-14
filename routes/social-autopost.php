@@ -32,6 +32,15 @@ Route::group([
         ->where('network', $network)
         ->name('callback');
 
+    // LinkedIn and Facebook: the pages the account can post to, and the ones shares go to.
+    Route::get('{network}/pages', [ConnectionController::class, 'pages'])
+        ->where('network', $network)
+        ->name('pages.show');
+
+    Route::put('{network}/pages', [ConnectionController::class, 'selectPages'])
+        ->where('network', $network)
+        ->name('pages.update');
+
     Route::delete('{network}/connection', [ConnectionController::class, 'disconnect'])
         ->where('network', $network)
         ->name('connection.destroy');

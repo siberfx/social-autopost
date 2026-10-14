@@ -26,8 +26,14 @@ use Siberfx\SocialAutopost\SocialManager;
  * @method static bool disconnect(string $key)
  * @method static \Illuminate\Support\Collection<int, SharedPost> share(Model&ShareableOnSocial $model, ?string $network = null, string $trigger = 'manual')
  * @method static SharedPost shareTo(Model&ShareableOnSocial $model, string $network, string $trigger = 'manual')
+ * @method static SharedPost shareToPage(Model&ShareableOnSocial $model, string $network, string $page, string $trigger = 'manual')
+ * @method static \Illuminate\Support\Collection<int, SharedPost> shareToPages(Model&ShareableOnSocial $model, string $network, ?array<int, string> $pages = null, string $trigger = 'manual')
+ * @method static bool hasPages(string $key)
+ * @method static list<\Siberfx\SocialAutopost\Data\Page> pages(string $key)
+ * @method static list<string> selectedPages(string $key)
+ * @method static Connection selectPages(string $key, array<int, string> $ids)
  * @method static void queue(Model&ShareableOnSocial $model, ?string $network = null, string $trigger = 'manual')
- * @method static bool wasPosted(Model $model, ?string $network = null)
+ * @method static bool wasPosted(Model $model, ?string $network = null, ?string $page = null)
  * @method static \Illuminate\Support\Collection<int, string> targets()
  *
  * @see SocialManager

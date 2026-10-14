@@ -34,6 +34,11 @@ return [
             // Must equal an "Authorized redirect URL" exactly. Null uses the package callback route.
             'redirect_uri' => env('LINKEDIN_REDIRECT_URI'),
             'scopes' => ['openid', 'profile', 'email', 'w_member_social'],
+            // Also list the organization pages the member runs, so shares can go to them.
+            // Needs LinkedIn's Community Management API product on the app; without it
+            // LinkedIn refuses the login. Off: the member's own profile is the only page.
+            'organizations' => (bool) env('LINKEDIN_ORGANIZATIONS', false),
+            'organization_scopes' => ['r_organization_admin', 'w_organization_social'],
             // LinkedIn-Version header (YYYYMM).
             'api_version' => env('LINKEDIN_API_VERSION', '202609'),
             // PUBLIC or CONNECTIONS.
@@ -63,7 +68,8 @@ return [
             'class' => FacebookNetwork::class,
             'app_id' => env('FACEBOOK_APP_ID'),
             'app_secret' => env('FACEBOOK_APP_SECRET'),
-            // The Page to post to. Null uses the first Page the account manages.
+            // The Page selected after connecting. Null selects the first Page the account
+            // manages. Every managed Page is listed; choose more under PUT /social/facebook/pages.
             'page_id' => env('FACEBOOK_PAGE_ID'),
             'redirect_uri' => env('FACEBOOK_REDIRECT_URI'),
             'api_version' => env('FACEBOOK_API_VERSION', 'v25.0'),

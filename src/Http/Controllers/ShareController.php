@@ -43,8 +43,16 @@ final class ShareController extends Controller
         $model = $class::query()->find((string) $request->query('id', ''));
         abort_if($model === null, 404);
 
+        // pages[] picks the pages for this one share, on a network route of a network with pages.
+        $pages = $request->input('pages');
+        $pages = $network !== null && is_array($pages) && $pages !== [] && $social->hasPages($network)
+            ? array_values(array_map('strval', array_filter($pages, 'is_scalar')))
+            : null;
+
         try {
-            $records = $social->share($model, $network, SharedPost::TRIGGER_MANUAL);
+            $records = $pages !== null
+                ? $social->shareToPages($model, (string) $network, $pages, SharedPost::TRIGGER_MANUAL)
+                : $social->share($model, $network, SharedPost::TRIGGER_MANUAL);
         } catch (NotShareable|NotConnected|NetworkDisabled|InvalidArgumentException $e) {
             return $this->respond($request, 422, $e->getMessage());
         } catch (RequestFailed $e) {
@@ -59,6 +67,7 @@ final class ShareController extends Controller
 
         $data = $records->map(fn (SharedPost $record) => [
             'network' => $record->network,
+            'page' => $record->target ?? null,
             'status' => $record->status,
             'post_id' => $record->post_id,
             'posted_at' => $record->posted_at?->toIso8601String(),
@@ -69,9 +78,10 @@ final class ShareController extends Controller
             return $this->respond($request, 502, 'The share failed on every network.', $data);
         }
 
+        $networks = $posted->pluck('network')->unique()->implode(', ');
         $message = $posted->count() === $records->count()
-            ? 'Shared on '.$posted->pluck('network')->implode(', ').'.'
-            : 'Shared on '.$posted->pluck('network')->implode(', ').'; the other networks failed.';
+            ? 'Shared on '.$networks.'.'
+            : 'Shared on '.$networks.'; the others failed.';
 
         return $this->respond($request, 201, $message, $data);
     }

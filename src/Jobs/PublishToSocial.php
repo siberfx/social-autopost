@@ -54,9 +54,20 @@ final class PublishToSocial implements ShouldBeUnique, ShouldQueue
         $model = $this->resolve();
 
         // Unpublished, deleted, switched off or disconnected since the job was
-        // queued, or already posted there: nothing to do.
+        // queued: nothing to do.
         if ($model === null || ! $model->isLiveForSocial() || ! $social->isEnabled($this->network)
-            || ! $social->isConnected($this->network) || $social->wasPosted($model, $this->network)) {
+            || ! $social->isConnected($this->network)) {
+            return;
+        }
+
+        if ($social->hasPages($this->network) && SocialManager::tracksPages()) {
+            $this->shareToPages($social, $model);
+
+            return;
+        }
+
+        // Already posted there: nothing to do.
+        if ($social->wasPosted($model, $this->network)) {
             return;
         }
 
@@ -71,6 +82,43 @@ final class PublishToSocial implements ShouldBeUnique, ShouldQueue
             $this->fail($e);
         } catch (InvalidArgumentException|NotConnected|NetworkDisabled|UnknownNetwork $e) {
             $this->fail($e);
+        }
+    }
+
+    /**
+     * Every selected page not posted to yet, so a retry never posts to a page
+     * twice. A retryable failure is thrown after the other pages were tried;
+     * otherwise a permanent one fails the job.
+     */
+    private function shareToPages(SocialManager $social, Model&ShareableOnSocial $model): void
+    {
+        $retry = null;
+        $permanent = null;
+
+        foreach ($social->selectedPages($this->network) as $page) {
+            if ($social->wasPosted($model, $this->network, $page)) {
+                continue;
+            }
+
+            try {
+                $social->shareToPage($model, $this->network, $page, $this->trigger);
+            } catch (RequestFailed $e) {
+                if ($e->isRetryable()) {
+                    $retry ??= $e;
+                } else {
+                    $permanent ??= $e;
+                }
+            } catch (InvalidArgumentException|NotConnected|NetworkDisabled|UnknownNetwork $e) {
+                $permanent ??= $e;
+            }
+        }
+
+        if ($retry !== null) {
+            throw $retry;
+        }
+
+        if ($permanent !== null) {
+            $this->fail($permanent);
         }
     }
 

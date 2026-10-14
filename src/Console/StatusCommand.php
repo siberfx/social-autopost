@@ -41,7 +41,27 @@ final class StatusCommand extends Command
 
         $this->table(['Network', 'Key', 'Enabled', 'Auto-post', 'Connected', 'Status'], $rows);
 
+        foreach ($social->keys() as $key) {
+            if ($social->isEnabled($key) && $social->hasPages($key) && $social->isConnected($key)) {
+                $this->pages($social, $key);
+            }
+        }
+
         return self::SUCCESS;
+    }
+
+    /** The pages a network can post to; [x] marks the ones shares go to. */
+    private function pages(SocialManager $social, string $key): void
+    {
+        $selected = $social->selectedPages($key);
+
+        $this->newLine();
+        $this->line($social->network($key)->label().' pages ([x] = shares go there):');
+
+        foreach ($social->pages($key) as $page) {
+            $mark = in_array($page->id, $selected, true) ? '[x]' : '[ ]';
+            $this->line("  {$mark} ".($page->name ?? $page->id)." ({$page->type}) {$page->id}");
+        }
     }
 
     private function connectionStatus(string $key): string

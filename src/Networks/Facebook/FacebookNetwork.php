@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Siberfx\SocialAutopost\Contracts\ConnectionStore;
+use Siberfx\SocialAutopost\Contracts\HasPages;
 use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
 use Siberfx\SocialAutopost\Contracts\SocialNetwork;
 use Siberfx\SocialAutopost\Data\Connection;
@@ -19,11 +21,12 @@ use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Posts\LinkPost;
 
 /**
- * Posts to one Facebook Page. Connect runs Facebook Login and keeps the Page's
- * own token, which does not expire, so nothing refreshes. Disconnect removes
- * the app's permissions with the stored user token, which revokes the Page token too.
+ * Posts to Facebook Pages. Connect runs Facebook Login and keeps every Page the
+ * account manages with its own token, which does not expire, so nothing
+ * refreshes. Shares go to the selected Pages. Disconnect removes the app's
+ * permissions with the stored user token, which revokes the Page tokens too.
  */
-final class FacebookNetwork implements SocialNetwork
+final class FacebookNetwork implements HasPages, SocialNetwork
 {
     public const KEY = 'facebook';
 
@@ -49,6 +52,7 @@ final class FacebookNetwork implements SocialNetwork
         return $this->stored() !== null;
     }
 
+    /** The first selected Page's status, cached; the pages always come from the store. */
     public function connection(): Connection
     {
         $stored = $this->stored();
@@ -60,13 +64,13 @@ final class FacebookNetwork implements SocialNetwork
         $cached = Cache::get($this->statusKey($stored));
 
         if (is_array($cached)) {
-            return Connection::fromCache($cached);
+            $connection = Connection::fromCache($cached);
+        } else {
+            $connection = $this->fetchStatus($stored);
+            $this->remember($stored, $connection);
         }
 
-        $connection = $this->fetchStatus($stored);
-        $this->remember($stored, $connection);
-
-        return $connection;
+        return $connection->withPages($stored->publicPages(), $stored->selectedPages);
     }
 
     /** @throws ConnectionFailed */
@@ -112,13 +116,7 @@ final class FacebookNetwork implements SocialNetwork
 
         $this->store->put(self::KEY, $stored->toArray());
 
-        return new Connection(
-            network: self::KEY,
-            connected: true,
-            status: 'active',
-            name: $stored->name,
-            connectedAt: $stored->connectedAt,
-        );
+        return $this->connected($stored, 'active');
     }
 
     public function disconnect(): bool
@@ -140,13 +138,62 @@ final class FacebookNetwork implements SocialNetwork
         return $revoked;
     }
 
-    /** @throws NotConnected|RequestFailed */
+    /**
+     * Posts to the first selected Page.
+     *
+     * @throws NotConnected|RequestFailed
+     */
     public function publish(Model&ShareableOnSocial $model, LinkPost $post): ?string
     {
         $stored = $this->stored() ?? throw new NotConnected('Facebook is not connected.');
 
+        return $this->post($stored, $stored->pageId, $post);
+    }
+
+    public function pages(): array
+    {
+        return $this->stored()?->publicPages() ?? [];
+    }
+
+    public function selectedPages(): array
+    {
+        return $this->stored()->selectedPages ?? [];
+    }
+
+    /** @param  list<string>  $ids */
+    public function selectPages(array $ids): Connection
+    {
+        $stored = $this->stored() ?? throw new NotConnected('Facebook is not connected.');
+
+        if ($ids === []) {
+            throw new InvalidArgumentException('Choose at least one Facebook Page.');
+        }
+
+        foreach ($ids as $id) {
+            $this->requirePage($stored, $id);
+        }
+
+        $this->store->put(self::KEY, $stored->withSelected($ids)->toArray());
+
+        return $this->connection();
+    }
+
+    /** @throws NotConnected|RequestFailed|InvalidArgumentException */
+    public function publishToPage(Model&ShareableOnSocial $model, LinkPost $post, string $page): ?string
+    {
+        $stored = $this->stored() ?? throw new NotConnected('Facebook is not connected.');
+        $this->requirePage($stored, $page);
+
+        return $this->post($stored, $page, $post);
+    }
+
+    /** @throws RequestFailed */
+    private function post(FacebookConnection $stored, string $pageId, LinkPost $post): ?string
+    {
+        $page = $this->requirePage($stored, $pageId);
+
         try {
-            return $this->graph->postLink($stored->accessToken, $stored->pageId, $post);
+            return $this->graph->postLink($page['access_token'], $page['id'], $post);
         } catch (RequestFailed $e) {
             if ($e->isUnauthorized()) {
                 $this->remember($stored, $this->connected($stored, 'expired'));
@@ -154,6 +201,16 @@ final class FacebookNetwork implements SocialNetwork
 
             throw $e;
         }
+    }
+
+    /**
+     * @return array{id: string, name: ?string, picture: ?string, access_token: string}
+     *
+     * @throws InvalidArgumentException
+     */
+    private function requirePage(FacebookConnection $stored, string $id): array
+    {
+        return $stored->page($id) ?? throw new InvalidArgumentException("[{$id}] is not a Facebook Page this account manages.");
     }
 
     private function stored(): ?FacebookConnection
@@ -187,6 +244,8 @@ final class FacebookNetwork implements SocialNetwork
             connectedAt: $stored->connectedAt,
             // 0 means the Page token never expires.
             expiresAt: $expiresAt > 0 ? CarbonImmutable::createFromTimestamp($expiresAt) : null,
+            pages: $stored->publicPages(),
+            selectedPages: $stored->selectedPages,
         );
     }
 
@@ -198,6 +257,8 @@ final class FacebookNetwork implements SocialNetwork
             status: $status,
             name: $stored->name,
             connectedAt: $stored->connectedAt,
+            pages: $stored->publicPages(),
+            selectedPages: $stored->selectedPages,
         );
     }
 

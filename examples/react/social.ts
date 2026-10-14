@@ -3,6 +3,15 @@
 
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral';
 
+/** A place a network can post to: a LinkedIn profile or organization page, or a Facebook Page. */
+export interface SocialPage {
+    id: string;
+    type: 'member' | 'organization' | 'page';
+    name: string | null;
+    picture: string | null;
+    selected: boolean;
+}
+
 export interface SocialConnection {
     network: string;
     label: string;
@@ -18,12 +27,16 @@ export interface SocialConnection {
         connected_at: string | null;
         expires_at: string | null;
         days_left: number | null;
+        // LinkedIn and Facebook list their pages; other networks return [].
+        pages: SocialPage[];
+        selected_pages: string[];
     };
     badge: { label: string; tone: Tone };
     needs_reconnect: boolean;
     confirm_disconnect: string;
     can_manage: boolean;
-    urls: { connect: string; disconnect: string };
+    // urls.pages: only for networks with pages (LinkedIn, Facebook).
+    urls: { connect: string; disconnect: string; pages?: string };
 }
 
 export interface SocialShare {
@@ -49,16 +62,23 @@ function xsrfToken(): string {
 }
 
 /** A JSON request to the package routes, with the session cookie and CSRF token. */
-export async function request<T>(url: string, method = 'GET'): Promise<{ ok: boolean; body: T }> {
+export async function request<T>(url: string, method = 'GET', body?: unknown): Promise<{ ok: boolean; body: T }> {
     const response = await fetch(url, {
         method,
         credentials: 'same-origin',
+        body: body === undefined ? undefined : JSON.stringify(body),
         headers: {
             Accept: 'application/json',
+            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
             'X-Requested-With': 'XMLHttpRequest',
             'X-XSRF-TOKEN': xsrfToken(),
         },
     });
 
     return { ok: response.ok, body: (await response.json()) as T };
+}
+
+/** Choose the pages a network shares to (one or more ids from connection.pages). */
+export function selectPages(card: SocialConnection, pages: string[]) {
+    return request<{ message: string; data: SocialConnection['connection'] }>(card.urls.pages as string, 'PUT', { pages });
 }

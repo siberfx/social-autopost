@@ -9,7 +9,7 @@ Tailwind classes, the same as Laravel's React and Vue starter kits.
 |---|---|
 | `react/SocialConnections.tsx`, `vue/SocialConnections.vue` | A page with one card per enabled network: connect, reconnect, disconnect, status and expiry. |
 | `react/ShareButton.tsx`, `vue/ShareButton.vue` | A button that shares one model now. |
-| `react/social.ts`, `vue/social.ts` | The types and the `fetch` helper both components use. |
+| `react/social.ts`, `vue/social.ts` | The types and the `fetch` helper both components use, and `selectPages(card, ids)` to choose the LinkedIn or Facebook pages shares go to. |
 
 ## With Inertia
 

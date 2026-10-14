@@ -65,6 +65,25 @@
                 @endif
             </div>
 
+            @if (($pagesUrl ?? null) && $canManage)
+                <form method="POST" action="{{ $pagesUrl }}" @if ($livewire) wire:submit="selectPages" @endif class="border-top mt-3 pt-3">
+                    @csrf
+                    @method('PUT')
+                    <p class="fw-semibold mb-2">Post to</p>
+                    @foreach ($connection->pages as $page)
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="pages[]" value="{{ $page->id }}" id="social-page-{{ $network }}-{{ $loop->index }}"
+                                   @if ($livewire) wire:model="selectedPages" @elseif (in_array($page->id, $connection->selectedPages, true)) checked @endif>
+                            <label class="form-check-label" for="social-page-{{ $network }}-{{ $loop->index }}">
+                                {{ $page->name ?? $page->id }}
+                                <small class="text-muted">{{ $page->type === 'member' ? 'Profile' : ($page->type === 'organization' ? 'Organization page' : 'Page') }}</small>
+                            </label>
+                        </div>
+                    @endforeach
+                    <button type="submit" class="btn btn-sm btn-outline-secondary mt-2">Save pages</button>
+                </form>
+            @endif
+
             @if ($connection->status === 'unknown')
                 <p class="small text-muted mt-2 mb-0">{{ $label }} could not be asked about this connection just now; it may still work.</p>
             @endif

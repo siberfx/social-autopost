@@ -6,6 +6,7 @@ and add more networks later with one class and one config entry.
 - Each network has two switches: **enabled** (on or off) and **autopost** (post automatically when a model goes live).
 - A switched-off network is invisible: no UI, no routes (404), no auto-post, no sharing, and its commands say so.
 - One connection per network, stored encrypted; one share history for all networks.
+- LinkedIn and Facebook list the pages an account can post to; choose one or more and every share goes to each.
 - Auto-post runs on a queue, once per model and network, with retries only when a network asks for it.
 - Optional Telegram, Slack and email messages, each naming the network.
 - Ready-made connection cards and share buttons (Tailwind or Bootstrap 5, Blade or Livewire), or headless.
@@ -108,8 +109,9 @@ your URL differs.
 | TikTok | developers.tiktok.com → your app → Login Kit and Content Posting API (Direct Post on) | `https://example.com/social/tiktok/callback` | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `user.info.basic`, `video.publish`; verify the domain your media is served from |
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
-`LINKEDIN_API_VERSION`, `FACEBOOK_PAGE_ID` (the Page to post to; the first managed Page when
-empty), `FACEBOOK_API_VERSION`.
+`LINKEDIN_API_VERSION`, `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
+[Choosing pages](#choosing-pages)), `FACEBOOK_PAGE_ID` (the Page selected after connecting; the
+first managed Page when empty), `FACEBOOK_API_VERSION`.
 
 X text is composed to 280 characters, counting every URL as 23. LinkedIn escapes characters it
 reserves for mentions and hashtags. Facebook sends the link in its own field and takes the preview
@@ -158,6 +160,121 @@ Social::isConnected('x');
 Social::connection('x')->name;      // the account name, from the network
 Social::disconnect('x');            // revokes at the network, then forgets it
 ```
+
+## Choosing pages
+
+LinkedIn and Facebook can post to more than one place. After connecting, the connection lists
+every **page** the account can post to, and people choose one or more of them. Every share then
+goes to each selected page, with one history row per page.
+
+| Network | Pages |
+|---|---|
+| LinkedIn | The member's own profile, plus the organization pages they administer when `LINKEDIN_ORGANIZATIONS=true` |
+| Facebook | Every Page the account manages |
+| X, Instagram, TikTok | One account; `pages` is empty |
+
+Right after connecting, the selection is what the package posted to before pages existed: the
+LinkedIn profile, and on Facebook the `FACEBOOK_PAGE_ID` Page (or the first managed Page). So
+nothing changes until someone picks other pages.
+
+### The pages in the response
+
+`GET /social/connections`, `Social::connection('linkedin')->toArray()` and the `Connected` event's
+connection all carry the pages. Each page has a `selected` flag, and `selected_pages` lists the ids:
+
+```json
+{
+    "network": "linkedin",
+    "connected": true,
+    "status": "active",
+    "name": "Ada Lovelace",
+    "pages": [
+        { "id": "urn:li:person:8kX2…", "type": "member", "name": "Ada Lovelace", "picture": "https://media.licdn.com/…", "selected": true },
+        { "id": "urn:li:organization:1042", "type": "organization", "name": "Analytical Engines", "picture": null, "selected": false },
+        { "id": "urn:li:organization:2077", "type": "organization", "name": "Difference Ltd", "picture": null, "selected": false }
+    ],
+    "selected_pages": ["urn:li:person:8kX2…"],
+    "…": "…"
+}
+```
+
+`type` is `member` (a LinkedIn profile), `organization` (a LinkedIn organization page) or `page`
+(a Facebook Page). Page tokens never leave the server.
+
+### Choosing them
+
+Over HTTP, behind the same gate as the other routes. Both answer 404 for a network without pages:
+
+| Route | Does |
+|---|---|
+| `GET /social/{network}/pages` (`social-autopost.pages.show`) | `{"data": {"pages": [...], "selected_pages": [...]}}` |
+| `PUT /social/{network}/pages` (`social-autopost.pages.update`) | Body `{"pages": ["urn:li:organization:1042", "urn:li:person:8kX2…"]}`: one or more ids. Answers the connection, or 422 when the list is empty or names an unknown page. A plain HTML form is redirected back with a message. |
+
+```bash
+curl -X PUT https://example.com/social/linkedin/pages \
+  -H 'Accept: application/json' -H 'Content-Type: application/json' \
+  -H "X-XSRF-TOKEN: …" --cookie "…" \
+  -d '{"pages": ["urn:li:organization:1042", "urn:li:organization:2077"]}'
+```
+
+Or in PHP:
+
+```php
+use Siberfx\SocialAutopost\Facades\Social;
+
+Social::pages('facebook');                         // list<Page>: id, type, name, picture
+Social::selectedPages('facebook');                 // ['1234567']
+Social::selectPages('facebook', ['1234567', '7654321']);
+
+Social::share($post, 'facebook');                  // one SharedPost per selected Page
+Social::shareToPages($post, 'linkedin', ['urn:li:organization:1042']);   // these pages, this once
+Social::wasPosted($post, 'linkedin', 'urn:li:organization:1042');
+```
+
+The connection cards show a "Post to" list of checkboxes when there is more than one page, and the
+Livewire card saves it without a page reload. A signed share request may send `pages[]` to post to
+other pages for that one share (`POST /social/{network}/share`), and `social:share` takes `--page=`
+(repeatable). `social:status` lists each network's pages and marks the selected ones.
+
+When one page fails, the others still post: the failure is recorded for that page, and the share
+throws only when every page failed. A queued share retries only the pages that have not posted yet.
+
+### LinkedIn organization pages
+
+Posting as an organization needs LinkedIn's **Community Management API** product on your app, which
+LinkedIn approves on request. Once it is approved, switch it on:
+
+```dotenv
+LINKEDIN_ORGANIZATIONS=true
+```
+
+The login then also asks for `r_organization_admin` and `w_organization_social`
+(`networks.linkedin.organization_scopes`), and connecting lists the pages where the member is an
+administrator or content administrator. Reconnect after switching it on. Leave it off without the
+product: LinkedIn refuses a login that asks for scopes the app does not have. If LinkedIn will not
+list the organizations, the connection still works with the profile only, and a warning is logged.
+
+### Facebook Pages
+
+Every Page the account manages is kept, each with its own Page token, so you can post to several
+Pages from one connection. `FACEBOOK_PAGE_ID` now only sets the Page selected after connecting; it
+must still be a Page the account manages.
+
+### Upgrading to 1.2
+
+Publish and run the new migration. It adds a `target` column to `social_posts`, which records the
+page each share went to:
+
+```bash
+php artisan vendor:publish --tag=social-autopost-migrations
+php artisan migrate
+```
+
+Existing connections keep working without reconnecting: a stored LinkedIn connection has the
+profile as its only page, and a stored Facebook connection has its one Page. Reconnect to list more
+pages. Until the migration runs, shares still work, but the page is not recorded and a retried job
+cannot tell which pages already posted. A custom network that implements
+`Contracts\HasPages` gets the same page handling as LinkedIn and Facebook.
 
 ## A ready-made connections page
 
@@ -312,6 +429,9 @@ in the JSON your page already loads for that model. Each card looks like this:
 }
 ```
 
+LinkedIn and Facebook cards also have `connection.pages`, `connection.selected_pages` and
+`urls.pages`; `selectPages(card, ids)` in `social.ts` saves a choice. See [Choosing pages](#choosing-pages).
+
 Connecting is a full page load (`urls.connect` is a plain link). Disconnecting and sharing are
 JSON requests that send the session cookie and `XSRF-TOKEN`. See [`examples/README.md`](examples/README.md)
 for the details.
@@ -334,9 +454,9 @@ php artisan queue:work --queue=default
 |---|---|
 | `social:install [--theme=] [--headless]` | Publishes config and migrations, sets the UI theme, prints the redirect URI of each enabled network. |
 | `social:page [--theme=] [--layout=] [--section=] [--livewire] [--view=] [--force]` | Writes a connections page with a card for every enabled network. |
-| `social:status` | Every network: enabled, auto-post, connected, status. |
+| `social:status` | Every network: enabled, auto-post, connected, status; then each network's pages, the selected ones marked `[x]`. |
 | `social:disconnect {network} [--force]` | Revokes and forgets one connection. Refuses a switched-off network. |
-| `social:share {network} {model} {id} [--force]` | Shares one model to one network now. |
+| `social:share {network} {model} {id} [--page=*] [--force]` | Shares one model to one network now: to its selected pages, or to the `--page` ids given. |
 | `social:check-token [--days=]` | Fires `TokenExpiringSoon` for enabled networks expiring within `expiry_warning_days`. |
 | `social:test-notification [--channel=]` | Sends a test to the enabled notification channels. |
 
@@ -358,6 +478,9 @@ Every message names the network, for example "Shared on X: …" or "The Facebook
    from `config('social-autopost.networks.{key}')`.
 2. Add an entry under `networks` with `enabled`, `autopost`, `class` and its own keys.
 3. Optionally add `post_url` (with `{id}`) for links in notifications, and `brand` for its colour and logo.
+4. If the account can post to several places, also implement `Contracts\HasPages`: `pages()`,
+   `selectedPages()`, `selectPages()` and `publishToPage()`. The page routes, cards, commands and
+   per-page history then work for it too.
 
 ```php
 'mastodon' => [
@@ -401,6 +524,7 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 |---|---|
 | `networks.{key}.enabled`, `.autopost`, `.class` | The switches and the driver. |
 | `networks.{key}.*` | The network's own keys (credentials, API version, page id…). |
+| `networks.linkedin.organizations`, `.organization_scopes` | Also list and post to the member's organization pages (needs the Community Management API). |
 | `networks.{key}.post_url`, `.brand` | Notification links and the UI colour and logo. |
 | `networks.{key}.hint`, `.disconnect_note` | The card note, and what disconnecting means when the network cannot revoke (`''` hides). |
 | `connection_store` | Where connections are kept (encrypted, `DatabaseConnectionStore` by default). |

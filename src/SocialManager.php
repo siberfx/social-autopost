@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Siberfx\SocialAutopost\Contracts\HasPages;
 use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
 use Siberfx\SocialAutopost\Contracts\SocialNetwork;
 use Siberfx\SocialAutopost\Data\Connection;
+use Siberfx\SocialAutopost\Data\Page;
 use Siberfx\SocialAutopost\Events\Connected;
 use Siberfx\SocialAutopost\Events\Disconnected;
 use Siberfx\SocialAutopost\Events\Shared;
@@ -23,11 +25,13 @@ use Siberfx\SocialAutopost\Exceptions\UnknownNetwork;
 use Siberfx\SocialAutopost\Jobs\PublishToSocial;
 use Siberfx\SocialAutopost\Models\SharedPost;
 use Siberfx\SocialAutopost\Posts\LinkPost;
+use Siberfx\SocialAutopost\Support\Columns;
 use Throwable;
 
 /**
- * Everything the app calls: which networks are on, connecting, sharing and
- * queueing. A network that is switched off is invisible to all of it.
+ * Everything the app calls: which networks are on, connecting, choosing
+ * pages, sharing and queueing. A network that is switched off is invisible
+ * to all of it.
  */
 final class SocialManager
 {
@@ -135,14 +139,66 @@ final class SocialManager
         return $revoked;
     }
 
+    /** Whether the network can post to more than one page (LinkedIn, Facebook). */
+    public function hasPages(string $key): bool
+    {
+        return $this->network($key) instanceof HasPages;
+    }
+
+    /**
+     * Every page the connected account can post to; empty when not connected.
+     *
+     * @return list<Page>
+     *
+     * @throws NetworkDisabled|UnknownNetwork
+     * @throws InvalidArgumentException When the network has no pages.
+     */
+    public function pages(string $key): array
+    {
+        $this->requireEnabled($key);
+
+        return $this->pagesOf($key)->pages();
+    }
+
+    /**
+     * The ids of the pages shares go to.
+     *
+     * @return list<string>
+     *
+     * @throws NetworkDisabled|UnknownNetwork
+     * @throws InvalidArgumentException When the network has no pages.
+     */
+    public function selectedPages(string $key): array
+    {
+        $this->requireEnabled($key);
+
+        return $this->pagesOf($key)->selectedPages();
+    }
+
+    /**
+     * Choose the pages shares go to: one or more ids from pages().
+     *
+     * @param  array<int, string>  $ids
+     *
+     * @throws NetworkDisabled|NotConnected|UnknownNetwork
+     * @throws InvalidArgumentException When the network has no pages, $ids is empty or names an unknown page.
+     */
+    public function selectPages(string $key, array $ids): Connection
+    {
+        $this->requireEnabled($key);
+
+        return $this->pagesOf($key)->selectPages(array_values(array_map('strval', $ids)));
+    }
+
     /**
      * Post the model now, to one network or to every enabled and connected one.
+     * A network with pages posts to every selected page.
      *
-     * Named network: its failure is recorded and rethrown. All networks: each
-     * failure is recorded and the others still run, so one outage never
-     * stops the rest. Re-sharing an already posted model is allowed.
+     * Named network: its failure is recorded and rethrown (with pages: when every
+     * page failed). All networks: each failure is recorded and the others still
+     * run, so one outage never stops the rest. Re-sharing an already posted model is allowed.
      *
-     * @return Collection<int, SharedPost> One record per network tried: posted or failed.
+     * @return Collection<int, SharedPost> One record per network (and page) tried: posted or failed.
      *
      * @throws NotShareable|NetworkDisabled|NotConnected|UnknownNetwork|RequestFailed|InvalidArgumentException
      */
@@ -155,14 +211,14 @@ final class SocialManager
         if ($network !== null) {
             $this->assertReady($network);
 
-            return collect([$this->attempt($model, $network, $trigger, rethrow: true)]);
+            return $this->attempt($model, $network, $trigger, rethrow: true);
         }
 
         // Built once: an invalid post is the model's problem, not each network's.
         $post = $model->toSocialPost();
 
         return $this->targets()
-            ->map(fn (string $key) => $this->attempt($model, $key, $trigger, rethrow: false, post: $post))
+            ->flatMap(fn (string $key) => $this->attempt($model, $key, $trigger, rethrow: false, post: $post))
             ->values();
     }
 
@@ -170,27 +226,91 @@ final class SocialManager
      * Post to one network and record it. Throws on failure without recording a
      * failure row: the caller decides, as a queued job retries first.
      *
+     * A network with pages posts to every selected page; a failure is thrown
+     * once every page was tried. The first posted record is returned.
+     *
      * @throws NetworkDisabled|NotConnected|UnknownNetwork|RequestFailed|InvalidArgumentException
      */
     public function shareTo(Model&ShareableOnSocial $model, string $network, string $trigger = SharedPost::TRIGGER_MANUAL, ?LinkPost $post = null): SharedPost
     {
         $this->assertReady($network);
+        $driver = $this->network($network);
+        $post ??= $model->toSocialPost();
 
-        $id = $this->network($network)->publish($model, $post ?? $model->toSocialPost());
+        if (! $driver instanceof HasPages) {
+            return $this->record($model, $network, null, $driver->publish($model, $post), $trigger);
+        }
 
-        $record = SharedPost::query()->create([
-            'shareable_type' => $model->getMorphClass(),
-            'shareable_id' => $model->getKey(),
-            'network' => $network,
-            'post_id' => $id,
-            'status' => SharedPost::STATUS_POSTED,
-            'trigger' => $trigger,
-            'posted_at' => now(),
-        ]);
+        $first = null;
+        $failure = null;
 
-        event(new Shared($network, $model, $record));
+        foreach ($driver->selectedPages() as $page) {
+            try {
+                $first ??= $this->shareToPage($model, $network, $page, $trigger, $post);
+            } catch (RequestFailed $e) {
+                $failure ??= $e;
+            }
+        }
 
-        return $record;
+        if ($failure !== null) {
+            throw $failure;
+        }
+
+        return $first ?? throw new NotConnected($driver->label().' has no page selected.');
+    }
+
+    /**
+     * Post to one page of a network with pages and record it. Throws on failure
+     * without recording a failure row.
+     *
+     * @throws NetworkDisabled|NotConnected|UnknownNetwork|RequestFailed
+     * @throws InvalidArgumentException When the network has no pages or $page is not one of them.
+     */
+    public function shareToPage(Model&ShareableOnSocial $model, string $network, string $page, string $trigger = SharedPost::TRIGGER_MANUAL, ?LinkPost $post = null): SharedPost
+    {
+        $this->assertReady($network);
+
+        $id = $this->pagesOf($network)->publishToPage($model, $post ?? $model->toSocialPost(), $page);
+
+        return $this->record($model, $network, $page, $id, $trigger);
+    }
+
+    /**
+     * Post to some pages of a network: the given ones, or the selected ones when
+     * $pages is null. Each page is tried; a failure is recorded and the rest
+     * still run. Throws the last failure only when every page failed.
+     *
+     * @param  array<int, string>|null  $pages
+     * @return Collection<int, SharedPost> One record per page: posted or failed.
+     *
+     * @throws NotShareable|NetworkDisabled|NotConnected|UnknownNetwork|RequestFailed
+     * @throws InvalidArgumentException When the network has no pages, or $pages is empty or names an unknown page.
+     */
+    public function shareToPages(Model&ShareableOnSocial $model, string $network, ?array $pages = null, string $trigger = SharedPost::TRIGGER_MANUAL): Collection
+    {
+        if (! $model->isLiveForSocial()) {
+            throw new NotShareable;
+        }
+
+        $this->assertReady($network);
+        $driver = $this->pagesOf($network);
+
+        if ($pages !== null) {
+            $known = array_map(fn (Page $page) => $page->id, $driver->pages());
+            $pages = array_values(array_unique(array_map('strval', $pages)));
+
+            if ($pages === []) {
+                throw new InvalidArgumentException('Choose at least one page.');
+            }
+
+            foreach ($pages as $page) {
+                if (! in_array($page, $known, true)) {
+                    throw new InvalidArgumentException("[{$page}] is not a page this {$this->network($network)->label()} account can post to.");
+                }
+            }
+        }
+
+        return $this->attemptPages($model, $network, $pages ?? $driver->selectedPages(), $trigger, rethrow: true, post: $model->toSocialPost());
     }
 
     /**
@@ -213,14 +333,24 @@ final class SocialManager
         }
     }
 
-    /** Whether the model was posted, to one network or to any. */
-    public function wasPosted(Model $model, ?string $network = null): bool
+    /**
+     * Whether the model was posted: to any network, to one, or to one page of
+     * one. A page is ignored until the target column is migrated.
+     */
+    public function wasPosted(Model $model, ?string $network = null, ?string $page = null): bool
     {
         return SharedPost::query()
             ->for($model)
             ->posted()
             ->when($network !== null, fn ($query) => $query->forNetwork((string) $network))
+            ->when($page !== null && self::tracksPages(), fn ($query) => $query->forTarget((string) $page))
             ->exists();
+    }
+
+    /** Whether shares record the page they went to (the target column is migrated). */
+    public static function tracksPages(): bool
+    {
+        return Columns::has((new SharedPost)->getTable(), 'target');
     }
 
     /**
@@ -234,28 +364,84 @@ final class SocialManager
     }
 
     /**
-     * Records one attempt. A failure is stored as a failed row, then either rethrown or returned.
+     * Records one network's attempt: every selected page for a network with
+     * pages. A failure is stored as a failed row, then either rethrown or returned.
+     *
+     * @return Collection<int, SharedPost>
      *
      * @throws RequestFailed|NetworkDisabled|NotConnected|UnknownNetwork
      */
-    private function attempt(Model&ShareableOnSocial $model, string $network, string $trigger, bool $rethrow, ?LinkPost $post = null): SharedPost
+    private function attempt(Model&ShareableOnSocial $model, string $network, string $trigger, bool $rethrow, ?LinkPost $post = null): Collection
     {
+        $driver = $this->network($network);
+
+        if ($driver instanceof HasPages) {
+            return $this->attemptPages($model, $network, $driver->selectedPages(), $trigger, $rethrow, $post);
+        }
+
         try {
-            return $this->shareTo($model, $network, $trigger, $post);
+            return collect([$this->shareTo($model, $network, $trigger, $post)]);
         } catch (RequestFailed $e) {
-            $record = $this->recordFailure($model, $network, $trigger, $e);
+            $record = $this->recordFailure($model, $network, null, $trigger, $e);
 
             if ($rethrow) {
                 throw $e;
             }
 
-            return $record;
+            return collect([$record]);
         }
     }
 
-    private function recordFailure(Model $model, string $network, string $trigger, Throwable $e): SharedPost
+    /**
+     * One record per page. With $rethrow, the last failure is thrown when every page failed.
+     *
+     * @param  list<string>  $pages
+     * @return Collection<int, SharedPost>
+     *
+     * @throws RequestFailed
+     */
+    private function attemptPages(Model&ShareableOnSocial $model, string $network, array $pages, string $trigger, bool $rethrow, ?LinkPost $post = null): Collection
     {
-        return SharedPost::query()->create([
+        $post ??= $model->toSocialPost();
+        $records = collect();
+        $failure = null;
+
+        foreach ($pages as $page) {
+            try {
+                $records->push($this->shareToPage($model, $network, $page, $trigger, $post));
+            } catch (RequestFailed $e) {
+                $failure = $e;
+                $records->push($this->recordFailure($model, $network, $page, $trigger, $e));
+            }
+        }
+
+        if ($rethrow && $failure !== null && $records->every(fn (SharedPost $record) => $record->status === SharedPost::STATUS_FAILED)) {
+            throw $failure;
+        }
+
+        return $records;
+    }
+
+    private function record(Model&ShareableOnSocial $model, string $network, ?string $page, ?string $postId, string $trigger): SharedPost
+    {
+        $record = SharedPost::query()->create($this->withTarget([
+            'shareable_type' => $model->getMorphClass(),
+            'shareable_id' => $model->getKey(),
+            'network' => $network,
+            'post_id' => $postId,
+            'status' => SharedPost::STATUS_POSTED,
+            'trigger' => $trigger,
+            'posted_at' => now(),
+        ], $page));
+
+        event(new Shared($network, $model, $record));
+
+        return $record;
+    }
+
+    private function recordFailure(Model $model, string $network, ?string $page, string $trigger, Throwable $e): SharedPost
+    {
+        return SharedPost::query()->create($this->withTarget([
             'shareable_type' => $model->getMorphClass(),
             'shareable_id' => $model->getKey(),
             'network' => $network,
@@ -263,7 +449,31 @@ final class SocialManager
             'trigger' => $trigger,
             'error' => mb_substr($e->getMessage(), 0, 2000),
             'posted_at' => null,
-        ]);
+        ], $page));
+    }
+
+    /**
+     * Adds the page when there is one and the column exists, so apps that have
+     * not run the 1.2 migration keep working.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function withTarget(array $attributes, ?string $page): array
+    {
+        return $page !== null && self::tracksPages() ? $attributes + ['target' => $page] : $attributes;
+    }
+
+    /** @throws InvalidArgumentException|UnknownNetwork */
+    private function pagesOf(string $key): HasPages
+    {
+        $network = $this->network($key);
+
+        if (! $network instanceof HasPages) {
+            throw new InvalidArgumentException("The [{$key}] network posts to one account and has no pages to choose.");
+        }
+
+        return $network;
     }
 
     /** @throws NetworkDisabled|NotConnected|UnknownNetwork */

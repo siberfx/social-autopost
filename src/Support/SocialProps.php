@@ -55,7 +55,10 @@ final class SocialProps
                 'connect' => route($routes.'redirect', ['network' => $network]),
                 // DELETE with Accept: application/json.
                 'disconnect' => route($routes.'connection.destroy', ['network' => $network]),
-            ],
+            ] + ($social->hasPages($network) ? [
+                // LinkedIn and Facebook: PUT {"pages": ["…", "…"]} with Accept: application/json to choose where shares go.
+                'pages' => route($routes.'pages.update', ['network' => $network]),
+            ] : []),
         ];
     }
 

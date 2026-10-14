@@ -33,6 +33,10 @@ final class ConnectionViewData
             'canManage' => Gate::allows(SocialAutopostServiceProvider::ABILITY),
             'connectUrl' => route($routes.'redirect', ['network' => $network]),
             'disconnectUrl' => route($routes.'connection.destroy', ['network' => $network]),
+            // The page picker shows when there is a choice to make.
+            'pagesUrl' => $social->hasPages($network) && count($connection->pages) > 1
+                ? route($routes.'pages.update', ['network' => $network])
+                : null,
         ];
     }
 }

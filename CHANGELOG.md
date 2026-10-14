@@ -5,6 +5,28 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-15
+
+### Added
+- Pages: LinkedIn and Facebook connections now list every page the account can post to, and people choose one or more of them. Every share goes to each selected page. The connection (`toArray()`, `GET /social/connections`, the `Connected` event) carries `pages` (`id`, `type`, `name`, `picture`, `selected`) and `selected_pages`. Page tokens never leave the server.
+- `GET /social/{network}/pages` and `PUT /social/{network}/pages` (`{"pages": [...]}`) to read and choose the pages. They answer 404 for a network without pages and 422 for an empty or unknown choice; a plain HTML form is redirected back with a message.
+- Facade: `hasPages()`, `pages()`, `selectedPages()`, `selectPages()`, `shareToPage()`, `shareToPages()`, and `wasPosted($model, $network, $page)`.
+- LinkedIn organization pages: with `LINKEDIN_ORGANIZATIONS=true` the login also asks for `r_organization_admin` and `w_organization_social` (`networks.linkedin.organization_scopes`), and the pages where the member is an administrator or content administrator are listed next to their profile. Needs LinkedIn's Community Management API product. If LinkedIn will not list them, connecting still succeeds with the profile only and a warning is logged.
+- Facebook keeps every Page the account manages, each with its own Page token, so one connection can post to several Pages.
+- `Contracts\HasPages`: an optional interface for networks with more than one place to post. Networks that only implement `SocialNetwork` are unaffected.
+- A `target` column on `social_posts` records the page each share went to (`update_social_posts_table_add_target` migration, `SharedPost::forTarget()`).
+- The connection cards show a "Post to" checkbox list when there is more than one page. The Livewire card saves it with a `selectPages` action.
+- Signed share requests accept `pages[]` to post to other pages for that one share. `social:share` takes `--page=` (repeatable), and `social:status` lists each network's pages with the selected ones marked.
+- `SocialProps::connection()` adds `urls.pages` for networks with pages. The React and Vue `social.ts` examples have the page types and a `selectPages(card, ids)` helper.
+
+### Changed
+- Right after connecting, the selection matches the old behaviour: the LinkedIn profile, and on Facebook the `FACEBOOK_PAGE_ID` Page or the first managed Page. `FACEBOOK_PAGE_ID` now only sets that first selection.
+- When one page fails, the other pages still post and the failure is recorded for that page. A named-network share throws only when every page failed. A queued share retries only the pages that have not posted yet.
+- `share()` returns one `SharedPost` per network and page. `shareTo()` posts to every selected page and returns the first posted record.
+
+### Upgrading
+- Publish and run the new migration: `php artisan vendor:publish --tag=social-autopost-migrations && php artisan migrate`. Connections stored by 1.1 keep working without reconnecting. Reconnect to list more pages. Until the migration runs, shares still work, but the page is not recorded.
+
 ## [1.1.2] - 2026-10-12
 
 ### Changed

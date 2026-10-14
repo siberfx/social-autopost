@@ -70,6 +70,26 @@
             @endif
         </div>
 
+        @if (($pagesUrl ?? null) && $canManage)
+            <form method="POST" action="{{ $pagesUrl }}" @if ($livewire) wire:submit="selectPages" @endif class="space-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                @csrf
+                @method('PUT')
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Post to</p>
+                <div class="space-y-1">
+                    @foreach ($connection->pages as $page)
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" name="pages[]" value="{{ $page->id }}"
+                                   @if ($livewire) wire:model="selectedPages" @elseif (in_array($page->id, $connection->selectedPages, true)) checked @endif
+                                   class="size-4 rounded border-gray-300 dark:border-gray-600">
+                            <span class="truncate">{{ $page->name ?? $page->id }}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $page->type === 'member' ? 'Profile' : ($page->type === 'organization' ? 'Organization page' : 'Page') }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                <button type="submit" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">Save pages</button>
+            </form>
+        @endif
+
         @if ($connection->status === 'unknown')
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $label }} could not be asked about this connection just now; it may still work.</p>
         @endif

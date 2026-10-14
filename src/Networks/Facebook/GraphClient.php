@@ -53,10 +53,10 @@ final class GraphClient
     }
 
     /**
-     * Exchange the login code for a long-lived user token, then take the Page
-     * token of the Page to post to: the configured page_id when set, otherwise
-     * the first Page the account manages. Page tokens derived from a long-lived
-     * user token do not expire.
+     * Exchange the login code for a long-lived user token, then keep every Page
+     * the account manages with its Page token. The configured page_id (when set,
+     * and it must be managed) or else the first Page is selected. Page tokens
+     * derived from a long-lived user token do not expire.
      *
      * @throws RequestFailed
      * @throws NotConfigured
@@ -79,26 +79,33 @@ final class GraphClient
             'fb_exchange_token' => $short,
         ])), 'long-lived user token');
 
-        $pages = $this->send(fn () => $this->graph()->withToken($long)->get('me/accounts', [
-            'fields' => 'id,name,access_token',
+        $listed = $this->send(fn () => $this->graph()->withToken($long)->get('me/accounts', [
+            'fields' => 'id,name,access_token,picture{url}',
             'limit' => 100,
         ]))->json('data');
 
-        $configured = $this->setting('page_id');
-        $page = collect(is_array($pages) ? $pages : [])->first(
-            fn ($candidate) => is_array($candidate) && ($configured === null || (string) ($candidate['id'] ?? '') === $configured),
-        );
+        $pages = [];
 
-        if (! is_array($page) || ! is_string($page['access_token'] ?? null) || ($page['id'] ?? '') === '') {
+        foreach (is_array($listed) ? $listed : [] as $candidate) {
+            $page = is_array($candidate) ? FacebookConnection::pageFrom($candidate) : null;
+
+            if ($page !== null) {
+                $pages[] = $page;
+            }
+        }
+
+        $configured = $this->setting('page_id');
+
+        if ($pages === [] || ($configured !== null && ! in_array($configured, array_column($pages, 'id'), true))) {
             throw new RequestFailed($configured !== null
                 ? "This Facebook account does not manage the Page {$configured}."
                 : 'This Facebook account does not manage a Page.');
         }
 
         return new FacebookConnection(
-            accessToken: $page['access_token'],
-            pageId: (string) $page['id'],
-            name: is_string($page['name'] ?? null) ? $page['name'] : null,
+            pages: $pages,
+            // Until people choose: the configured Page, otherwise the first one.
+            selectedPages: [$configured ?? $pages[0]['id']],
             userAccessToken: $long,
             connectedAt: CarbonImmutable::now(),
         );

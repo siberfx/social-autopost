@@ -12,8 +12,10 @@ use Orchestra\Testbench\TestCase as Orchestra;
 use Siberfx\SocialAutopost\Contracts\ConnectionStore;
 use Siberfx\SocialAutopost\Facades\Social;
 use Siberfx\SocialAutopost\SocialAutopostServiceProvider;
+use Siberfx\SocialAutopost\Support\Columns;
 use Siberfx\SocialAutopost\Tests\Fixtures\FailingNetwork;
 use Siberfx\SocialAutopost\Tests\Fixtures\FakeNetwork;
+use Siberfx\SocialAutopost\Tests\Fixtures\FakePagesNetwork;
 use Siberfx\SocialAutopost\Tests\Fixtures\Post;
 
 abstract class TestCase extends Orchestra
@@ -28,6 +30,9 @@ abstract class TestCase extends Orchestra
 
         FakeNetwork::$published = [];
         FailingNetwork::$status = 503;
+        FakePagesNetwork::$failing = [];
+        FakePagesNetwork::$postedTo = [];
+        Columns::flush();
 
         // Most tests act as an allowed admin; the deny case overrides this.
         Gate::define(SocialAutopostServiceProvider::ABILITY, fn ($user = null) => true);
@@ -44,6 +49,11 @@ abstract class TestCase extends Orchestra
             'enabled' => false,
             'autopost' => false,
             'class' => FailingNetwork::class,
+        ]);
+        config()->set('social-autopost.networks.paged', [
+            'enabled' => false,
+            'autopost' => false,
+            'class' => FakePagesNetwork::class,
         ]);
     }
 

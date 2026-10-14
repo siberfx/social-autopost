@@ -11,10 +11,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Siberfx\SocialAutopost\Contracts\ConnectionStore;
+use Siberfx\SocialAutopost\Contracts\HasPages;
 use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
 use Siberfx\SocialAutopost\Contracts\SocialNetwork;
 use Siberfx\SocialAutopost\Data\Connection;
+use Siberfx\SocialAutopost\Data\Page;
 use Siberfx\SocialAutopost\Exceptions\ConnectionFailed;
 use Siberfx\SocialAutopost\Exceptions\NotConfigured;
 use Siberfx\SocialAutopost\Exceptions\NotConnected;
@@ -24,13 +27,16 @@ use Throwable;
 
 /**
  * LinkedIn as a social network: one member account connected through
- * "Sign In with LinkedIn" and posts through the Posts API.
+ * "Sign In with LinkedIn" and posts through the Posts API, as the member
+ * and, with networks.linkedin.organizations on, as the organization pages
+ * they run.
  *
  * The stored data is an array: access_token, author_urn, name, email,
- * picture, scopes, expires_at and connected_at. The access token never
- * leaves this class; Connection carries the profile and status only.
+ * picture, scopes, expires_at, connected_at, pages and selected_pages. The
+ * access token never leaves this class; Connection carries the profile,
+ * status and pages only.
  */
-final class LinkedInNetwork implements SocialNetwork
+final class LinkedInNetwork implements HasPages, SocialNetwork
 {
     private const SESSION_KEY = 'social-autopost.oauth.linkedin';
 
@@ -55,7 +61,7 @@ final class LinkedInNetwork implements SocialNetwork
         return $this->stored() !== null;
     }
 
-    /** Cached per token for status_cache_ttl seconds; LinkedIn is asked at most once in between. */
+    /** Cached per token for status_cache_ttl seconds; LinkedIn is asked at most once in between. The pages always come from the store. */
     public function connection(): Connection
     {
         $stored = $this->stored();
@@ -68,13 +74,13 @@ final class LinkedInNetwork implements SocialNetwork
         $cached = Cache::get($this->cacheKey($token));
 
         if (is_array($cached)) {
-            return Connection::fromCache($cached);
+            $connection = Connection::fromCache($cached);
+        } else {
+            $connection = $this->fetchStatus($stored);
+            $this->remember($token, $connection);
         }
 
-        $connection = $this->fetchStatus($stored);
-        $this->remember($token, $connection);
-
-        return $connection;
+        return $connection->withPages(self::pagesOf($stored), self::selectedOf($stored));
     }
 
     /** @throws NotConfigured When the client id or secret is missing. */
@@ -149,21 +155,76 @@ final class LinkedInNetwork implements SocialNetwork
     }
 
     /**
+     * Posts to the first selected page: the member's profile unless people chose otherwise.
+     *
      * @return string|null The post URN, or null when LinkedIn accepted the post without one.
      *
-     * @throws RequestFailed
+     * @throws RequestFailed|NotConnected
      */
     public function publish(Model&ShareableOnSocial $model, LinkPost $post): ?string
     {
         $stored = $this->stored() ?? throw new NotConnected;
+
+        return $this->post($stored, self::selectedOf($stored)[0], $post);
+    }
+
+    /** @return list<Page> */
+    public function pages(): array
+    {
+        $stored = $this->stored();
+
+        return $stored === null ? [] : self::pagesOf($stored);
+    }
+
+    /** @return list<string> */
+    public function selectedPages(): array
+    {
+        $stored = $this->stored();
+
+        return $stored === null ? [] : self::selectedOf($stored);
+    }
+
+    /** @param  list<string>  $ids */
+    public function selectPages(array $ids): Connection
+    {
+        $stored = $this->stored() ?? throw new NotConnected;
+        $selected = self::validSelection(self::pagesOf($stored), $ids);
+
+        $stored['pages'] = array_map(fn (Page $page) => $page->toArray(), self::pagesOf($stored));
+        $stored['selected_pages'] = $selected;
+        $this->store->put($this->key(), $stored);
+
+        return $this->connection();
+    }
+
+    /**
+     * @return string|null The post URN, or null when LinkedIn accepted the post without one.
+     *
+     * @throws RequestFailed|NotConnected|InvalidArgumentException
+     */
+    public function publishToPage(Model&ShareableOnSocial $model, LinkPost $post, string $page): ?string
+    {
+        $stored = $this->stored() ?? throw new NotConnected;
+        self::validSelection(self::pagesOf($stored), [$page]);
+
+        return $this->post($stored, $page, $post);
+    }
+
+    /**
+     * @param  array<string, mixed>  $stored
+     *
+     * @throws RequestFailed
+     */
+    private function post(array $stored, string $author, LinkPost $post): ?string
+    {
         $token = $this->token($stored);
 
         try {
-            return $this->posts->create($token, (string) ($stored['author_urn'] ?? ''), $post);
+            return $this->posts->create($token, $author, $post);
         } catch (RequestFailed $e) {
             // LinkedIn refused the token: show it as expired until the admin connects again.
             if ($e->isUnauthorized()) {
-                $this->remember($token, $this->withStatus($this->connection(), 'expired'));
+                $this->remember($token, $this->connection()->withStatus('expired'));
             }
 
             throw $e;
@@ -180,6 +241,67 @@ final class LinkedInNetwork implements SocialNetwork
     private function token(array $stored): string
     {
         return (string) ($stored['access_token'] ?? '');
+    }
+
+    /**
+     * The stored pages. Connections stored before pages existed have only the member's profile.
+     *
+     * @param  array<string, mixed>  $stored
+     * @return list<Page>
+     */
+    private static function pagesOf(array $stored): array
+    {
+        $pages = Page::listFrom(is_array($stored['pages'] ?? null) ? $stored['pages'] : []);
+
+        if ($pages !== []) {
+            return $pages;
+        }
+
+        return [new Page(
+            (string) ($stored['author_urn'] ?? ''),
+            Page::TYPE_MEMBER,
+            self::string($stored['name'] ?? null),
+            self::string($stored['picture'] ?? null),
+        )];
+    }
+
+    /**
+     * The selected page ids that still exist; the first page when none does.
+     *
+     * @param  array<string, mixed>  $stored
+     * @return non-empty-list<string>
+     */
+    private static function selectedOf(array $stored): array
+    {
+        $ids = array_map(fn (Page $page) => $page->id, self::pagesOf($stored));
+        $selected = is_array($stored['selected_pages'] ?? null) ? $stored['selected_pages'] : [];
+        $selected = array_values(array_intersect(array_filter($selected, 'is_string'), $ids));
+
+        return $selected !== [] ? array_values(array_unique($selected)) : [$ids[0]];
+    }
+
+    /**
+     * @param  list<Page>  $pages
+     * @param  list<string>  $ids
+     * @return list<string>
+     *
+     * @throws InvalidArgumentException
+     */
+    private static function validSelection(array $pages, array $ids): array
+    {
+        if ($ids === []) {
+            throw new InvalidArgumentException('Choose at least one LinkedIn page.');
+        }
+
+        $known = array_map(fn (Page $page) => $page->id, $pages);
+
+        foreach ($ids as $id) {
+            if (! in_array($id, $known, true)) {
+                throw new InvalidArgumentException("[{$id}] is not a page this LinkedIn account can post to.");
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /** @param  array<string, mixed>  $stored */
@@ -212,6 +334,8 @@ final class LinkedInNetwork implements SocialNetwork
             expiresAt: isset($introspection['expires_at'])
                 ? CarbonImmutable::createFromTimestamp((int) $introspection['expires_at'])
                 : self::date($stored, 'expires_at'),
+            pages: self::pagesOf($stored),
+            selectedPages: self::selectedOf($stored),
         );
     }
 
@@ -228,21 +352,8 @@ final class LinkedInNetwork implements SocialNetwork
             scopes: self::scopes($stored),
             connectedAt: self::date($stored, 'connected_at'),
             expiresAt: self::date($stored, 'expires_at'),
-        );
-    }
-
-    private function withStatus(Connection $connection, string $status): Connection
-    {
-        return new Connection(
-            network: $connection->network,
-            connected: $connection->connected,
-            status: $status,
-            name: $connection->name,
-            email: $connection->email,
-            picture: $connection->picture,
-            scopes: $connection->scopes,
-            connectedAt: $connection->connectedAt,
-            expiresAt: $connection->expiresAt,
+            pages: self::pagesOf($stored),
+            selectedPages: self::selectedOf($stored),
         );
     }
 

@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * One share of one model to one network: posted or failed.
+ * One share of one model to one network (and page, for a network with pages): posted or failed.
  *
  * @property string $shareable_type
  * @property int|string $shareable_id
  * @property string $network
+ * @property string|null $target The page posted to, for a network with pages (see HasPages).
  * @property string|null $post_id
  * @property string $status
  * @property string $trigger
@@ -74,5 +75,17 @@ final class SharedPost extends Model
     public function scopeForNetwork(Builder $query, string $network): Builder
     {
         return $query->where('network', $network);
+    }
+
+    /**
+     * Shares to one page of a network with pages. Needs the target column
+     * (update_social_posts_table_add_target migration).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeForTarget(Builder $query, string $target): Builder
+    {
+        return $query->where('target', $target);
     }
 }
