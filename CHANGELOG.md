@@ -5,6 +5,8 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-26
+
 ### Added
 - `social:check-token` now runs by itself on the app's scheduler, daily at 08:00, so expiry warnings work without any setup. `check_token_schedule` takes another cron expression, or null to schedule it yourself.
 - `Social::shareAt($model, $when, $network = null)` queues a share for a moment in the future — "post this Tuesday at 09:00". The job checks again when the time comes, so a model no longer live, a network since disconnected, or a model that already posted there post nothing. The history records the `scheduled` trigger.
@@ -15,6 +17,13 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 - Mastodon driver: one account on your instance (`MASTODON_INSTANCE`), connected with OAuth 2 — register the app under Preferences → Development, no app review needed — posting to `/api/v1/statuses` with the text composed to 500 characters (URLs count as 23), the post's image uploaded and attached, an `Idempotency-Key` so a retry never posts twice, and `MASTODON_VISIBILITY` for who sees the statuses. The token does not expire.
 - Bluesky driver: no OAuth app and no consent screen — set `BLUESKY_IDENTIFIER` and an app password (`BLUESKY_APP_PASSWORD`, made under Settings → Privacy and security) and "Connect" signs in on the server. Posts carry the link as an external embed card with the post's image as its thumbnail, link facets in the 300-character text, and a session that refreshes itself — or simply signs in again — when it expires. `BLUESKY_SERVICE` points at another PDS.
 - `social:doctor [--ping]` checks the setup where it usually goes wrong: missing credentials, the callback URL to register per network, connections and their expiry (`--ping` asks the networks), the `manage-social-autopost` gate, the tables, the queue and the notification channels. Exit code 1 when an enabled network cannot work as configured.
+
+### Changed
+- X connections now ask for the `media.write` scope, so posts can carry an image. A connection made before this posts the text alone (with a logged notice) until the account connects again.
+- `social:check-token` runs daily at 08:00 by itself when the app uses the scheduler; set `check_token_schedule` to another cron expression, or null for the old behaviour (scheduling it yourself).
+
+### Upgrading
+- Nothing to migrate. Reconnect X to grant `media.write` when posts should carry images. To translate the UI, publish the new language lines: `php artisan vendor:publish --tag=social-autopost-lang`.
 
 ## [1.3.0] - 2026-10-26
 

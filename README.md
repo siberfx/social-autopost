@@ -1,15 +1,18 @@
 # Social Autopost for Laravel
 
-Share your Eloquent models to LinkedIn, X, Facebook, Instagram and TikTok, each one switched on or off on its own,
-and add more networks later with one class and one config entry.
+Share your Eloquent models to LinkedIn, X, Facebook, Instagram, TikTok, Mastodon and Bluesky, each
+one switched on or off on its own, and add more networks later with one class and one config entry.
 
 - Each network has two switches: **enabled** (on or off) and **autopost** (post automatically when a model goes live).
 - A switched-off network is invisible: no UI, no routes (404), no auto-post, no sharing, and its commands say so.
-- One connection per network, stored encrypted; one share history for all networks.
+- One connection per network, stored encrypted; one share history for all networks, prunable by age.
 - LinkedIn and Facebook list the pages an account can post to; choose one or more and every share goes to each.
-- Auto-post runs on a queue, once per model and network, with retries only when a network asks for it.
-- Optional Telegram, Slack and email messages, each naming the network.
+- One post per model, carrying a link and optionally an image or video; tailor its text per network with `on()`.
+- Auto-post runs on a queue, once per model and network, with retries only when a network asks for it,
+  rate limits that make a big import wait its turn, `shareAt()` for later, and `social:retry` for what failed.
+- Optional Telegram, Slack and email messages, each naming the network; every text follows the app locale.
 - Ready-made connection cards and share buttons (Tailwind or Bootstrap 5, Blade or Livewire), or headless.
+- `php artisan social:doctor` says what is missing when something does not work.
 
 Requires PHP 8.4+ and Laravel 12 or 13.
 
@@ -563,12 +566,12 @@ Every message names the network, for example "Shared on X: …" or "The Facebook
    per-page history then work for it too.
 
 ```php
-'mastodon' => [
-    'enabled' => (bool) env('MASTODON_ENABLED', false),
-    'autopost' => (bool) env('MASTODON_AUTOPOST', false),
-    'class' => App\Social\MastodonNetwork::class,
-    'post_url' => 'https://example.social/@me/{id}',
-    'brand' => ['color' => '#6364FF'],
+'pinterest' => [
+    'enabled' => (bool) env('PINTEREST_ENABLED', false),
+    'autopost' => (bool) env('PINTEREST_AUTOPOST', false),
+    'class' => App\Social\PinterestNetwork::class,
+    'post_url' => 'https://www.pinterest.com/pin/{id}/',
+    'brand' => ['color' => '#E60023'],
 ],
 ```
 

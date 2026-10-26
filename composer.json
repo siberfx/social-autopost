@@ -1,7 +1,7 @@
 {
     "name": "siberfx/social-autopost",
-    "description": "Share your Laravel models to LinkedIn, X, Facebook, Instagram and TikTok, each switched on or off, and add more networks later.",
-    "keywords": ["laravel", "social", "linkedin", "x", "twitter", "facebook", "instagram", "tiktok", "autopost", "share", "oauth"],
+    "description": "Share your Laravel models to LinkedIn, X, Facebook, Instagram, TikTok, Mastodon and Bluesky, each switched on or off, and add more networks later.",
+    "keywords": ["laravel", "social", "linkedin", "x", "twitter", "facebook", "instagram", "tiktok", "mastodon", "bluesky", "autopost", "share", "oauth"],
     "homepage": "https://github.com/siberfx/social-autopost",
     "license": "MIT",
     "type": "library",
