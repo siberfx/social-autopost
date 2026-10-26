@@ -524,6 +524,7 @@ A pruned share is forgotten: `wasPosted()` no longer sees it, and sharing the mo
 | `social:install [--theme=] [--headless]` | Publishes config and migrations, sets the UI theme, prints the redirect URI of each enabled network. |
 | `social:page [--theme=] [--layout=] [--section=] [--livewire] [--view=] [--force]` | Writes a connections page with a card for every enabled network. |
 | `social:status` | Every network: enabled, auto-post, connected, status; then each network's pages, the selected ones marked `[x]`. |
+| `social:doctor [--ping]` | Checks the setup where it usually goes wrong: credentials, the callback URL to register, connections and expiry (`--ping` asks the networks), the gate, the tables, the queue and the notification channels. Exit code 1 when something cannot work. |
 | `social:disconnect {network} [--force]` | Revokes and forgets one connection. Refuses a switched-off network. |
 | `social:share {network} {model} {id} [--page=*] [--force]` | Shares one model to one network now: to its selected pages, or to the `--page` ids given. |
 | `social:retry [network] [--since=] [--dry-run]` | Queues the failed shares that never posted, so they are tried again. A failure whose model has since posted there is left alone. |

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Siberfx\SocialAutopost\Console\CheckTokenCommand;
 use Siberfx\SocialAutopost\Console\DisconnectCommand;
+use Siberfx\SocialAutopost\Console\DoctorCommand;
 use Siberfx\SocialAutopost\Console\InstallCommand;
 use Siberfx\SocialAutopost\Console\PageCommand;
 use Siberfx\SocialAutopost\Console\RetryCommand;
@@ -30,6 +31,9 @@ final class SocialAutopostServiceProvider extends ServiceProvider
 {
     /** Who may connect, disconnect, see the connections and share. Define it in your app. */
     public const ABILITY = 'manage-social-autopost';
+
+    /** The deny-all fallback gate, when it was registered: social:doctor checks whether the app replaced it. */
+    public static ?\Closure $fallbackGate = null;
 
     public function register(): void
     {
@@ -51,7 +55,7 @@ final class SocialAutopostServiceProvider extends ServiceProvider
         // app's own definition wins whatever the provider order.
         $this->app->booted(function (): void {
             if (! Gate::has(self::ABILITY)) {
-                Gate::define(self::ABILITY, fn ($user = null): bool => false);
+                Gate::define(self::ABILITY, self::$fallbackGate = fn ($user = null): bool => false);
             }
         });
 
@@ -106,6 +110,7 @@ final class SocialAutopostServiceProvider extends ServiceProvider
                 InstallCommand::class,
                 PageCommand::class,
                 StatusCommand::class,
+                DoctorCommand::class,
                 DisconnectCommand::class,
                 ShareCommand::class,
                 RetryCommand::class,
