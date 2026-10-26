@@ -11,6 +11,7 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 - `social:retry [network] [--since=] [--dry-run]` queues the failed shares that never posted, so they are tried again. A failure whose model has since posted to that network (and page) is settled and left alone.
 - `LinkPost::on($networks, $closure)` tailors one post per network — hashtags on LinkedIn, tighter copy for X, a caption for Instagram — without changing what the other networks post. The closure gets the post and returns the version that network publishes.
 - Media on LinkedIn, X and Facebook: a `LinkPost` image is now uploaded and posted on LinkedIn (Images API) and X (`POST /2/media/upload`, needs the new `media.write` scope — reconnect to grant it; older connections post the text alone and log a notice), and posted as a Page photo on Facebook. A video becomes a Facebook Page video; LinkedIn and X keep the link or text until video support lands. Facebook downloads media from its URL itself; for LinkedIn and X the server downloads and uploads it (`http.upload_timeout`, default 120 seconds).
+- Translations: every text people see (cards, buttons, flash messages, Telegram/Slack/mail notifications) now goes through the app locale. English ships built in; `php artisan vendor:publish --tag=social-autopost-lang` publishes `messages.php` to translate. Console output stays English.
 
 ## [1.3.0] - 2026-10-26
 

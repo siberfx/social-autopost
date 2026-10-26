@@ -18,11 +18,11 @@
         @if (! $connection->connected)
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div>
-                    <p class="mb-0 fw-semibold">Not connected</p>
-                    <p class="mb-0 text-muted">Connect a {{ $label }} account to share your content.</p>
+                    <p class="mb-0 fw-semibold">{{ __('social-autopost::messages.card_not_connected') }}</p>
+                    <p class="mb-0 text-muted">{{ __('social-autopost::messages.card_connect_intro', ['label' => $label]) }}</p>
                 </div>
                 @if ($canManage)
-                    <a href="{{ $connectUrl }}" class="btn text-white" style="background-color:{{ $brand['color'] }}">Connect {{ $label }}</a>
+                    <a href="{{ $connectUrl }}" class="btn text-white" style="background-color:{{ $brand['color'] }}">{{ __('social-autopost::messages.card_connect', ['label' => $label]) }}</a>
                 @endif
             </div>
         @else
@@ -42,23 +42,23 @@
                         <div class="text-muted text-truncate">{{ $connection->email }}</div>
                     @endif
                     <small class="text-muted">
-                        @if ($presenter->connectedOn()) Connected {{ $presenter->connectedOn() }} @endif
+                        @if ($presenter->connectedOn()) {{ __('social-autopost::messages.card_connected_on', ['date' => $presenter->connectedOn()]) }} @endif
                         @if ($presenter->connectedOn() && $presenter->validUntil()) · @endif
-                        @if ($presenter->validUntil()) Valid until {{ $presenter->validUntil() }} @endif
+                        @if ($presenter->validUntil()) {{ __('social-autopost::messages.card_valid_until', ['date' => $presenter->validUntil()]) }} @endif
                     </small>
                 </div>
 
                 @if ($canManage)
                     <div class="d-flex gap-2">
-                        <a href="{{ $connectUrl }}" class="btn {{ $presenter->needsReconnect() ? 'text-white' : 'btn-outline-secondary' }}" @if ($presenter->needsReconnect()) style="background-color:{{ $brand['color'] }}" @endif>Reconnect</a>
+                        <a href="{{ $connectUrl }}" class="btn {{ $presenter->needsReconnect() ? 'text-white' : 'btn-outline-secondary' }}" @if ($presenter->needsReconnect()) style="background-color:{{ $brand['color'] }}" @endif>{{ __('social-autopost::messages.card_reconnect') }}</a>
 
                         @if ($livewire)
-                            <button type="button" class="btn btn-outline-danger" wire:click="disconnect" wire:confirm="{{ $confirmText }}">Disconnect</button>
+                            <button type="button" class="btn btn-outline-danger" wire:click="disconnect" wire:confirm="{{ $confirmText }}">{{ __('social-autopost::messages.card_disconnect') }}</button>
                         @else
                             <form method="POST" action="{{ $disconnectUrl }}" onsubmit="return confirm(@js($confirmText))">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-outline-danger">Disconnect</button>
+                                <button type="submit" class="btn btn-outline-danger">{{ __('social-autopost::messages.card_disconnect') }}</button>
                             </form>
                         @endif
                     </div>
@@ -69,23 +69,23 @@
                 <form method="POST" action="{{ $pagesUrl }}" @if ($livewire) wire:submit="selectPages" @endif class="border-top mt-3 pt-3">
                     @csrf
                     @method('PUT')
-                    <p class="fw-semibold mb-2">Post to</p>
+                    <p class="fw-semibold mb-2">{{ __('social-autopost::messages.card_post_to') }}</p>
                     @foreach ($connection->pages as $page)
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" name="pages[]" value="{{ $page->id }}" id="social-page-{{ $network }}-{{ $loop->index }}"
                                    @if ($livewire) wire:model="selectedPages" @elseif (in_array($page->id, $connection->selectedPages, true)) checked @endif>
                             <label class="form-check-label" for="social-page-{{ $network }}-{{ $loop->index }}">
                                 {{ $page->name ?? $page->id }}
-                                <small class="text-muted">{{ $page->type === 'member' ? 'Profile' : ($page->type === 'organization' ? 'Organization page' : 'Page') }}</small>
+                                <small class="text-muted">{{ __('social-autopost::messages.page_type_'.(in_array($page->type, ['member', 'organization'], true) ? $page->type : 'page')) }}</small>
                             </label>
                         </div>
                     @endforeach
-                    <button type="submit" class="btn btn-sm btn-outline-secondary mt-2">Save pages</button>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary mt-2">{{ __('social-autopost::messages.card_save_pages') }}</button>
                 </form>
             @endif
 
             @if ($connection->status === 'unknown')
-                <p class="small text-muted mt-2 mb-0">{{ $label }} could not be asked about this connection just now; it may still work.</p>
+                <p class="small text-muted mt-2 mb-0">{{ __('social-autopost::messages.card_status_unknown', ['label' => $label]) }}</p>
             @endif
         @endif
     </div>

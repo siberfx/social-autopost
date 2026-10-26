@@ -22,11 +22,11 @@
     @if (! $connection->connected)
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Not connected</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Connect a {{ $label }} account to share your content.</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ __('social-autopost::messages.card_not_connected') }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('social-autopost::messages.card_connect_intro', ['label' => $label]) }}</p>
             </div>
             @if ($canManage)
-                <a href="{{ $connectUrl }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2" style="background-color: {{ $brand['color'] }}">Connect {{ $label }}</a>
+                <a href="{{ $connectUrl }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2" style="background-color: {{ $brand['color'] }}">{{ __('social-autopost::messages.card_connect', ['label' => $label]) }}</a>
             @endif
         </div>
     @else
@@ -46,24 +46,24 @@
                     <p class="truncate text-sm text-gray-500 dark:text-gray-400">{{ $connection->email }}</p>
                 @endif
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    @if ($presenter->connectedOn()) Connected {{ $presenter->connectedOn() }} @endif
+                    @if ($presenter->connectedOn()) {{ __('social-autopost::messages.card_connected_on', ['date' => $presenter->connectedOn()]) }} @endif
                     @if ($presenter->connectedOn() && $presenter->validUntil()) · @endif
-                    @if ($presenter->validUntil()) Valid until {{ $presenter->validUntil() }} @endif
+                    @if ($presenter->validUntil()) {{ __('social-autopost::messages.card_valid_until', ['date' => $presenter->validUntil()]) }} @endif
                 </p>
             </div>
 
             @if ($canManage)
             <div class="flex gap-2">
-                <a href="{{ $connectUrl }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-semibold {{ $presenter->needsReconnect() ? 'text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800' }}" @if ($presenter->needsReconnect()) style="background-color: {{ $brand['color'] }}" @endif>Reconnect</a>
+                <a href="{{ $connectUrl }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-semibold {{ $presenter->needsReconnect() ? 'text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800' }}" @if ($presenter->needsReconnect()) style="background-color: {{ $brand['color'] }}" @endif>{{ __('social-autopost::messages.card_reconnect') }}</a>
 
                 @if ($livewire)
                     <button type="button" wire:click="disconnect" wire:confirm="{{ $confirmText }}"
-                            class="inline-flex items-center rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950">Disconnect</button>
+                            class="inline-flex items-center rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950">{{ __('social-autopost::messages.card_disconnect') }}</button>
                 @else
                     <form method="POST" action="{{ $disconnectUrl }}" onsubmit="return confirm(@js($confirmText))">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="inline-flex items-center rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950">Disconnect</button>
+                        <button type="submit" class="inline-flex items-center rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950">{{ __('social-autopost::messages.card_disconnect') }}</button>
                     </form>
                 @endif
             </div>
@@ -74,7 +74,7 @@
             <form method="POST" action="{{ $pagesUrl }}" @if ($livewire) wire:submit="selectPages" @endif class="space-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">
                 @csrf
                 @method('PUT')
-                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Post to</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ __('social-autopost::messages.card_post_to') }}</p>
                 <div class="space-y-1">
                     @foreach ($connection->pages as $page)
                         <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -82,16 +82,16 @@
                                    @if ($livewire) wire:model="selectedPages" @elseif (in_array($page->id, $connection->selectedPages, true)) checked @endif
                                    class="size-4 rounded border-gray-300 dark:border-gray-600">
                             <span class="truncate">{{ $page->name ?? $page->id }}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $page->type === 'member' ? 'Profile' : ($page->type === 'organization' ? 'Organization page' : 'Page') }}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ __('social-autopost::messages.page_type_'.(in_array($page->type, ['member', 'organization'], true) ? $page->type : 'page')) }}</span>
                         </label>
                     @endforeach
                 </div>
-                <button type="submit" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">Save pages</button>
+                <button type="submit" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">{{ __('social-autopost::messages.card_save_pages') }}</button>
             </form>
         @endif
 
         @if ($connection->status === 'unknown')
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $label }} could not be asked about this connection just now; it may still work.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('social-autopost::messages.card_status_unknown', ['label' => $label]) }}</p>
         @endif
     @endif
 </div>

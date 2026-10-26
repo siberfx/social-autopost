@@ -48,22 +48,22 @@ final class ShareButtonPresenter
     public function disabledReason(): ?string
     {
         if (Gate::denies(SocialAutopostServiceProvider::ABILITY)) {
-            return 'You are not allowed to manage social networks.';
+            return Lines::get('not_allowed');
         }
 
         if ($this->network !== null) {
             if (! $this->social->isEnabled($this->network)) {
-                return 'That network is switched off.';
+                return Lines::get('network_off');
             }
 
             if (! $this->social->isConnected($this->network)) {
-                return 'Connect '.$this->social->network($this->network)->label().' first.';
+                return Lines::get('connect_first', ['label' => $this->social->network($this->network)->label()]);
             }
         } elseif ($this->social->targets()->isEmpty()) {
-            return 'Connect a network first.';
+            return Lines::get('connect_any_first');
         }
 
-        return $this->model->isLiveForSocial() ? null : 'Only live items can be shared.';
+        return $this->model->isLiveForSocial() ? null : Lines::get('only_live');
     }
 
     /** The network's logo, or the generic one when the button shares to all networks. */
@@ -81,12 +81,14 @@ final class ShareButtonPresenter
         }
 
         if ($this->network === null) {
-            return $again ? 'Share again' : 'Share';
+            return $again ? Lines::get('share_again') : Lines::get('share');
         }
 
         $name = $this->social->network($this->network)->label();
 
-        return $again ? "Share again on {$name}" : "Share on {$name}";
+        return $again
+            ? Lines::get('share_again_on', ['label' => $name])
+            : Lines::get('share_on', ['label' => $name]);
     }
 
     public function title(): string
@@ -94,7 +96,9 @@ final class ShareButtonPresenter
         $posted = $this->lastPostedAt();
 
         return $this->disabledReason()
-            ?? ($posted !== null ? 'Shared on '.$posted->format('j M Y').'. Share again.' : 'Share');
+            ?? ($posted !== null
+                ? Lines::get('shared_on_date', ['date' => $posted->format('j M Y')])
+                : Lines::get('share'));
     }
 
     public function confirmText(): string
@@ -102,8 +106,8 @@ final class ShareButtonPresenter
         $posted = $this->lastPostedAt();
 
         return $posted !== null
-            ? 'This was already posted on '.$posted->format('j M Y').'. Post it again?'
-            : 'Post this now?';
+            ? Lines::get('confirm_share_again', ['date' => $posted->format('j M Y')])
+            : Lines::get('confirm_share');
     }
 
     /** The signed share URL. The network is part of it when the button targets one. */

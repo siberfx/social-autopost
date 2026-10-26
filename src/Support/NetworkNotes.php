@@ -14,19 +14,14 @@ namespace Siberfx\SocialAutopost\Support;
  */
 final class NetworkNotes
 {
-    /** Networks with no API to revoke access: where the account owner removes the app instead. */
-    private const DISCONNECT_NOTES = [
-        'instagram' => 'To remove its access completely, remove the app under Instagram → Settings → Apps and websites.',
-    ];
-
     /** A short line for the connection card, or null when there is nothing to say. */
     public static function hint(string $key): ?string
     {
         $hint = self::configured($key, 'hint') ?? match ($key) {
-            'instagram' => 'Posts need an image or a video. Connect an Instagram Business or Creator account.',
+            'instagram' => Lines::get('instagram_hint'),
             'tiktok' => config("social-autopost.networks.{$key}.privacy_level") === 'SELF_ONLY'
-                ? 'Posts need a video or an image, and are posted as private (only you can see them).'
-                : 'Posts need a video or an image. Until TikTok audits your app, it only accepts private posts: set TIKTOK_PRIVACY_LEVEL=SELF_ONLY meanwhile.',
+                ? Lines::get('tiktok_hint_private')
+                : Lines::get('tiktok_hint_audit'),
             default => null,
         };
 
@@ -36,7 +31,9 @@ final class NetworkNotes
     /** What disconnecting means for this network, or null when the network revokes the access itself. */
     public static function disconnectNote(string $key): ?string
     {
-        $note = self::configured($key, 'disconnect_note') ?? self::DISCONNECT_NOTES[$key] ?? null;
+        // Instagram has no API to revoke access: the account owner removes the app instead.
+        $note = self::configured($key, 'disconnect_note')
+            ?? ($key === 'instagram' ? Lines::get('instagram_disconnect_note') : null);
 
         return $note === '' ? null : $note;
     }
@@ -47,8 +44,8 @@ final class NetworkNotes
         $note = self::disconnectNote($key);
 
         return $note === null
-            ? "Disconnect {$label}? The connection is revoked and nothing posts there until you connect again."
-            : "Disconnect {$label}? It is forgotten here and nothing posts there until you connect again. {$note}";
+            ? Lines::get('confirm_disconnect', ['label' => $label])
+            : Lines::get('confirm_disconnect_noted', ['label' => $label, 'note' => $note]);
     }
 
     /** The message after disconnecting, given whether the network confirmed the revocation. */
@@ -57,9 +54,9 @@ final class NetworkNotes
         $note = self::disconnectNote($key);
 
         return match (true) {
-            $revoked => "{$label} disconnected.",
-            $note !== null => "{$label} disconnected here. {$note}",
-            default => "{$label} disconnected here, but {$label} did not confirm revoking the connection.",
+            $revoked => Lines::get('disconnected', ['label' => $label]),
+            $note !== null => Lines::get('disconnected_noted', ['label' => $label, 'note' => $note]),
+            default => Lines::get('disconnected_unconfirmed', ['label' => $label]),
         };
     }
 

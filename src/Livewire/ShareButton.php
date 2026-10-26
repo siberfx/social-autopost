@@ -19,6 +19,7 @@ use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Models\SharedPost;
 use Siberfx\SocialAutopost\SocialAutopostServiceProvider;
 use Siberfx\SocialAutopost\SocialManager;
+use Siberfx\SocialAutopost\Support\Lines;
 use Siberfx\SocialAutopost\Support\ShareButtonPresenter;
 use Siberfx\SocialAutopost\Support\Theme;
 
@@ -71,8 +72,8 @@ final class ShareButton extends Component
         $posted = $records->filter(fn (SharedPost $record) => $record->status === SharedPost::STATUS_POSTED)->pluck('network')->implode(', ');
 
         $this->flash = $posted !== ''
-            ? ['type' => 'success', 'message' => "Shared on {$posted}."]
-            : ['type' => 'error', 'message' => 'The share failed on every network.'];
+            ? ['type' => 'success', 'message' => Lines::get('shared_on', ['networks' => $posted])]
+            : ['type' => 'error', 'message' => Lines::get('share_failed_everywhere')];
 
         $this->dispatch('social-autopost-shared', networks: $posted);
     }

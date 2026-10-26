@@ -18,6 +18,7 @@ use Siberfx\SocialAutopost\Exceptions\NotShareable;
 use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Models\SharedPost;
 use Siberfx\SocialAutopost\SocialManager;
+use Siberfx\SocialAutopost\Support\Lines;
 use Siberfx\SocialAutopost\Support\StatusMessages;
 use Siberfx\SocialAutopost\Support\Ui;
 
@@ -62,7 +63,7 @@ final class ShareController extends Controller
         $posted = $records->filter(fn (SharedPost $record) => $record->status === SharedPost::STATUS_POSTED);
 
         if ($records->isEmpty()) {
-            return $this->respond($request, 422, 'No network is connected to share to.');
+            return $this->respond($request, 422, Lines::get('no_targets'));
         }
 
         $data = $records->map(fn (SharedPost $record) => [
@@ -75,13 +76,13 @@ final class ShareController extends Controller
         ])->values()->all();
 
         if ($posted->isEmpty()) {
-            return $this->respond($request, 502, 'The share failed on every network.', $data);
+            return $this->respond($request, 502, Lines::get('share_failed_everywhere'), $data);
         }
 
         $networks = $posted->pluck('network')->unique()->implode(', ');
         $message = $posted->count() === $records->count()
-            ? 'Shared on '.$networks.'.'
-            : 'Shared on '.$networks.'; the others failed.';
+            ? Lines::get('shared_on', ['networks' => $networks])
+            : Lines::get('shared_on_partial', ['networks' => $networks]);
 
         return $this->respond($request, 201, $message, $data);
     }

@@ -19,11 +19,11 @@ final class ConnectionPresenter
         $days = $this->connection->daysLeft();
 
         return match (true) {
-            $this->connection->status === 'expired' => ['label' => 'Expired', 'tone' => 'danger'],
-            $this->connection->status === 'revoked' => ['label' => "Revoked on {$this->label}", 'tone' => 'danger'],
-            $this->connection->status === 'unknown' => ['label' => 'Status unknown', 'tone' => 'neutral'],
-            $days !== null && $days < 14 => ['label' => 'Expires in '.max(0, $days).' days', 'tone' => 'warning'],
-            default => ['label' => 'Connected', 'tone' => 'success'],
+            $this->connection->status === 'expired' => ['label' => Lines::get('badge_expired'), 'tone' => 'danger'],
+            $this->connection->status === 'revoked' => ['label' => Lines::get('badge_revoked', ['label' => $this->label]), 'tone' => 'danger'],
+            $this->connection->status === 'unknown' => ['label' => Lines::get('badge_unknown'), 'tone' => 'neutral'],
+            $days !== null && $days < 14 => ['label' => Lines::get('badge_expires_in', ['days' => max(0, $days)]), 'tone' => 'warning'],
+            default => ['label' => Lines::get('badge_connected'), 'tone' => 'success'],
         };
     }
 
@@ -34,7 +34,7 @@ final class ConnectionPresenter
 
     public function displayName(): string
     {
-        return $this->connection->name ?? "{$this->label} account";
+        return $this->connection->name ?? Lines::get('account_fallback', ['label' => $this->label]);
     }
 
     public function initials(): string

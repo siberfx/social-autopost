@@ -9,6 +9,7 @@ use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
 use Siberfx\SocialAutopost\Events\Shared;
 use Siberfx\SocialAutopost\Events\ShareFailed;
 use Siberfx\SocialAutopost\Events\TokenExpiringSoon;
+use Siberfx\SocialAutopost\Support\Lines;
 use Throwable;
 
 /**
@@ -37,37 +38,37 @@ final class Message
     {
         [$title, $url] = self::describe($event->shareable);
 
-        return new self(self::LEVEL_SUCCESS, "Shared on {$label}: ".$title, array_values(array_filter([
+        return new self(self::LEVEL_SUCCESS, Lines::get('notify_shared', ['label' => $label, 'title' => $title]), array_values(array_filter([
             $url,
-            $postUrl !== null && $event->post->post_id !== null ? 'Post: '.$postUrl : null,
-            'Trigger: '.$event->post->trigger,
+            $postUrl !== null && $event->post->post_id !== null ? Lines::get('notify_post', ['url' => $postUrl]) : null,
+            Lines::get('notify_trigger', ['trigger' => $event->post->trigger]),
         ])));
     }
 
     public static function failed(ShareFailed $event, string $label): self
     {
-        return new self(self::LEVEL_ERROR, "{$label} share failed", [
-            "Model: {$event->shareableType} #{$event->shareableId}",
-            'Error: '.mb_substr($event->exception->getMessage(), 0, 500),
+        return new self(self::LEVEL_ERROR, Lines::get('notify_failed', ['label' => $label]), [
+            Lines::get('notify_model', ['type' => $event->shareableType, 'id' => $event->shareableId]),
+            Lines::get('notify_error', ['error' => mb_substr($event->exception->getMessage(), 0, 500)]),
         ]);
     }
 
     public static function tokenExpiring(TokenExpiringSoon $event, string $label): self
     {
         $headline = $event->daysLeft > 0
-            ? "The {$label} token expires in {$event->daysLeft} days"
-            : "The {$label} token has expired";
+            ? Lines::get('notify_expires', ['label' => $label, 'days' => $event->daysLeft])
+            : Lines::get('notify_expired', ['label' => $label]);
 
         return new self(self::LEVEL_WARNING, $headline, array_values(array_filter([
-            $event->connection->name !== null ? 'Account: '.$event->connection->name : null,
-            'Connect again to keep posting.',
+            $event->connection->name !== null ? Lines::get('notify_account', ['name' => $event->connection->name]) : null,
+            Lines::get('notify_reconnect'),
         ])));
     }
 
     public static function test(): self
     {
-        return new self(self::LEVEL_INFO, 'Social Autopost test notification', [
-            'Notifications from '.config('app.name', 'Laravel').' reach this channel.',
+        return new self(self::LEVEL_INFO, Lines::get('notify_test'), [
+            Lines::get('notify_test_line', ['app' => config('app.name', 'Laravel')]),
         ]);
     }
 

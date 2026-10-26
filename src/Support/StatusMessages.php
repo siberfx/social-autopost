@@ -16,13 +16,16 @@ final class StatusMessages
     public static function fromCallback(string $label, ?string $state, ?string $reason = null): ?array
     {
         return match ($state) {
-            'connected' => ['type' => 'success', 'message' => "{$label} connected."],
-            'cancelled' => ['type' => 'error', 'message' => "{$label} connection cancelled."],
-            'error' => ['type' => 'error', 'message' => "{$label} refused the connection: ".($reason !== null && $reason !== '' ? $reason : 'unknown error')],
-            'exchange_failed' => ['type' => 'error', 'message' => "{$label} refused the token exchange. Check that the redirect URL is registered on the app exactly."],
-            'invalid_state' => ['type' => 'error', 'message' => "The {$label} login expired. Connect again."],
-            'missing_code' => ['type' => 'error', 'message' => "{$label} did not return an authorization code."],
-            'not_configured' => ['type' => 'error', 'message' => "Set the {$label} client id and secret first."],
+            'connected' => ['type' => 'success', 'message' => Lines::get('connected', ['label' => $label])],
+            'cancelled' => ['type' => 'error', 'message' => Lines::get('connection_cancelled', ['label' => $label])],
+            'error' => ['type' => 'error', 'message' => Lines::get('connection_refused', [
+                'label' => $label,
+                'reason' => $reason !== null && $reason !== '' ? $reason : Lines::get('unknown_error'),
+            ])],
+            'exchange_failed' => ['type' => 'error', 'message' => Lines::get('exchange_failed', ['label' => $label])],
+            'invalid_state' => ['type' => 'error', 'message' => Lines::get('login_expired', ['label' => $label])],
+            'missing_code' => ['type' => 'error', 'message' => Lines::get('missing_code', ['label' => $label])],
+            'not_configured' => ['type' => 'error', 'message' => Lines::get('not_configured', ['label' => $label])],
             default => null,
         };
     }

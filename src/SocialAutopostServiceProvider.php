@@ -45,6 +45,8 @@ final class SocialAutopostServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'social-autopost');
+
         // Deny by default. Registered once every provider has booted, so the
         // app's own definition wins whatever the provider order.
         $this->app->booted(function (): void {
@@ -95,6 +97,10 @@ final class SocialAutopostServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../stubs/ShareableModel.stub' => base_path('stubs/social-autopost/ShareableModel.stub'),
             ], 'social-autopost-stubs');
+
+            $this->publishes([
+                __DIR__.'/../lang' => $this->app->langPath('vendor/social-autopost'),
+            ], 'social-autopost-lang');
 
             $this->commands([
                 InstallCommand::class,

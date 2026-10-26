@@ -14,6 +14,7 @@ use Siberfx\SocialAutopost\Exceptions\NetworkDisabled;
 use Siberfx\SocialAutopost\Exceptions\NotConnected;
 use Siberfx\SocialAutopost\Exceptions\UnknownNetwork;
 use Siberfx\SocialAutopost\SocialManager;
+use Siberfx\SocialAutopost\Support\Lines;
 use Siberfx\SocialAutopost\Support\NetworkNotes;
 use Siberfx\SocialAutopost\Support\SocialProps;
 use Siberfx\SocialAutopost\Support\StatusMessages;
@@ -107,7 +108,7 @@ final class ConnectionController extends Controller
                 : back()->with(StatusMessages::FLASH_KEY, ['type' => 'error', 'message' => $e->getMessage()]);
         }
 
-        $message = "{$label} will post to the chosen pages.";
+        $message = Lines::get('pages_saved', ['label' => $label]);
 
         if (! $json) {
             return back()->with(StatusMessages::FLASH_KEY, ['type' => 'success', 'message' => $message]);

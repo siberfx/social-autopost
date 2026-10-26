@@ -578,6 +578,16 @@ The data and settings differ in these ways:
   set it to `true` for every network you use.
 - **Gate:** one gate, `manage-social-autopost`, replaces the three per-network gates.
 
+## Translations
+
+Every text people see — cards, buttons, flash messages, notifications — follows the app locale.
+English ships built in; publish the lines to translate them:
+
+```bash
+php artisan vendor:publish --tag=social-autopost-lang
+# then translate lang/vendor/social-autopost/{locale}/messages.php
+```
+
 ## Headless
 
 Set `SOCIAL_UI=false` to ship without views or components. Routes then answer JSON only, and you
