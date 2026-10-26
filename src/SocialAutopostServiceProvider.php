@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Siberfx\SocialAutopost;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Siberfx\SocialAutopost\Console\CheckTokenCommand;
 use Siberfx\SocialAutopost\Console\DisconnectCommand;
@@ -51,6 +53,15 @@ final class SocialAutopostServiceProvider extends ServiceProvider
 
         // Always listening; the listener reads social-autopost.notifications on each event.
         Event::listen([Shared::class, ShareFailed::class, TokenExpiringSoon::class], SendNotifications::class);
+
+        // Spaces queued shares out per network (networks.{key}.rate_limit).
+        RateLimiter::for(Jobs\PublishToSocial::LIMITER, function (Jobs\PublishToSocial $job): Limit {
+            $limit = Jobs\PublishToSocial::rateLimit($job->network);
+
+            return $limit === null
+                ? Limit::none()
+                : (new Limit('', $limit['posts'], $limit['per_seconds']))->by($job->network);
+        });
 
         if (Ui::enabled()) {
             $this->bootUi();

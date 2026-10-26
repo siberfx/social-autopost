@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimited;
 use InvalidArgumentException;
 use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
 use Siberfx\SocialAutopost\Events\ShareFailed;
@@ -28,10 +29,13 @@ final class PublishToSocial implements ShouldBeUnique, ShouldQueue
     use InteractsWithQueue;
     use Queueable;
 
+    /** The rate limiter that spaces queued shares out per network (networks.{key}.rate_limit). */
+    public const LIMITER = 'social-autopost';
+
     public int $tries;
 
-    /** Seconds the unique lock may outlive a job that never ran. */
-    public int $uniqueFor = 600;
+    /** Seconds the unique lock may outlive a job that never ran (job.unique_for). */
+    public int $uniqueFor;
 
     public function __construct(
         public readonly string $shareableType,
@@ -40,6 +44,7 @@ final class PublishToSocial implements ShouldBeUnique, ShouldQueue
         public readonly string $trigger = SharedPost::TRIGGER_AUTO,
     ) {
         $this->tries = (int) config('social-autopost.job.tries', 3);
+        $this->uniqueFor = (int) config('social-autopost.job.unique_for', 600);
         $this->afterCommit();
     }
 
@@ -47,6 +52,30 @@ final class PublishToSocial implements ShouldBeUnique, ShouldQueue
     public function backoff(): array
     {
         return array_values(array_map('intval', (array) config('social-autopost.job.backoff', [60, 300])));
+    }
+
+    /** @return list<object> Throttled per network when the network has a rate_limit. */
+    public function middleware(): array
+    {
+        return self::rateLimit($this->network) === null ? [] : [new RateLimited(self::LIMITER)];
+    }
+
+    /** With job.retry_for set, time limits the retries instead of `tries`, so a rate limit never burns them. */
+    public function retryUntil(): ?CarbonImmutable
+    {
+        $seconds = config('social-autopost.job.retry_for');
+
+        return is_numeric($seconds) && (int) $seconds > 0 ? CarbonImmutable::now()->addSeconds((int) $seconds) : null;
+    }
+
+    /** @return array{posts: int, per_seconds: int}|null The network's queued-share rate limit, when one is configured. */
+    public static function rateLimit(string $network): ?array
+    {
+        $limit = config("social-autopost.networks.{$network}.rate_limit");
+        $posts = is_array($limit) && is_numeric($limit['posts'] ?? null) ? (int) $limit['posts'] : 0;
+        $seconds = is_array($limit) && is_numeric($limit['per_seconds'] ?? null) ? (int) $limit['per_seconds'] : 0;
+
+        return $posts > 0 && $seconds > 0 ? ['posts' => $posts, 'per_seconds' => $seconds] : null;
     }
 
     public function handle(SocialManager $social): void

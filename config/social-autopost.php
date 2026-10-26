@@ -58,6 +58,9 @@ return [
             'client_secret' => env('X_CLIENT_SECRET'),
             'redirect_uri' => env('X_REDIRECT_URI'),
             'scopes' => ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+            // Any network takes a rate_limit: queued shares over it wait their
+            // turn instead of failing. X's free tier allows 17 posts a day:
+            // 'rate_limit' => ['posts' => 17, 'per_seconds' => 86400],
             'post_url' => 'https://x.com/i/web/status/{id}',
             'brand' => ['color' => '#000000'],
         ],
@@ -200,6 +203,12 @@ return [
     'job' => [
         'tries' => 3,
         'backoff' => [60, 300],
+        // Seconds the one-job-per-model-and-network lock may outlive a job that never ran.
+        'unique_for' => 600,
+        // A job a networks.{key}.rate_limit sends back to the queue spends one
+        // try per round trip. Set this to give jobs time instead: every job
+        // then retries for this many seconds and `tries` is ignored.
+        'retry_for' => null,
     ],
 
     // social:check-token and the expiry warnings: warn when fewer days remain.

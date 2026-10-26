@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\Bus;
 use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Facades\Social;
@@ -81,3 +82,41 @@ it('lets a retryable network failure go back to the queue', function () {
     (new PublishToSocial($post->getMorphClass(), $post->getKey(), 'broken'))
         ->handle(app(SocialManager::class));
 })->throws(RequestFailed::class);
+
+it('rate limits only the networks with a rate_limit configured', function () {
+    $job = new PublishToSocial('post', 1, 'fake');
+
+    expect($job->middleware())->toBe([]);
+
+    config()->set('social-autopost.networks.fake.rate_limit', ['posts' => 2, 'per_seconds' => 60]);
+
+    expect($job->middleware())->toHaveCount(1)
+        ->and($job->middleware()[0])->toBeInstanceOf(RateLimited::class);
+});
+
+it('sends a queued share over the network rate limit back to the queue instead of posting', function () {
+    $this->network('fake');
+    $this->connect('fake');
+    config()->set('social-autopost.networks.fake.rate_limit', ['posts' => 1, 'per_seconds' => 60]);
+
+    $first = Post::create(['title' => 'One', 'status' => 'published']);
+    $second = Post::create(['title' => 'Two', 'status' => 'published']);
+
+    dispatch(new PublishToSocial($first->getMorphClass(), $first->getKey(), 'fake'));
+    dispatch(new PublishToSocial($second->getMorphClass(), $second->getKey(), 'fake'));
+
+    expect(FakeNetwork::$published)->toHaveCount(1);
+});
+
+it('reads the unique lock lifetime and the retry window from the config', function () {
+    config()->set('social-autopost.job.unique_for', 1200);
+
+    $job = new PublishToSocial('post', 1, 'fake');
+
+    expect($job->uniqueFor)->toBe(1200)
+        ->and($job->retryUntil())->toBeNull();
+
+    config()->set('social-autopost.job.retry_for', 3600);
+
+    expect($job->retryUntil()?->timestamp)->toBe(now()->addSeconds(3600)->timestamp);
+});

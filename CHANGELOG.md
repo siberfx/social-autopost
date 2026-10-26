@@ -5,6 +5,10 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+### Added
+- Per-network rate limits for queued shares: set `networks.{key}.rate_limit` to `['posts' => n, 'per_seconds' => s]` and jobs over the limit go back to the queue and wait their turn — an import or backfill trickles out instead of burning a small quota (X's free tier allows 17 posts a day). `job.retry_for` (seconds) gives throttled jobs time instead of spending `job.tries` on queue round trips.
+- `job.unique_for` configures how long the one-job-per-model-and-network lock may outlive a job that never ran (previously fixed at 600 seconds).
+
 ## [1.2.0] - 2026-10-15
 
 ### Added

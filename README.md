@@ -448,6 +448,17 @@ on `429`, `5xx` or no answer. Seeders and Artisan commands do not auto-post unle
 php artisan queue:work --queue=default
 ```
 
+Give a network with a small posting quota a rate limit, and queued shares wait their turn instead
+of failing — an import or backfill then trickles out instead of burning the quota at once:
+
+```php
+// config/social-autopost.php → networks.x (X's free tier allows 17 posts a day)
+'rate_limit' => ['posts' => 17, 'per_seconds' => 86400],
+```
+
+A job the rate limit sends back to the queue spends one of its `job.tries` per round trip; set
+`job.retry_for` (seconds) to give jobs time instead of tries.
+
 ## Commands
 
 | Command | Does |
@@ -532,7 +543,8 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `autopost` | `in_console`, `queue_connection`, `queue`. |
 | `ui` | `enabled` (headless when false), `theme`. |
 | `notifications` | `enabled`, `events`, `queued`, `tries`, `backoff`, `channels`. |
-| `job` | `tries` and `backoff` of the auto-post job. |
+| `networks.{key}.rate_limit` | `['posts' => n, 'per_seconds' => s]`: queued shares over it wait their turn. |
+| `job` | `tries`, `backoff`, `unique_for` and `retry_for` of the auto-post job. |
 | `expiry_warning_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
 
 ## Tests
