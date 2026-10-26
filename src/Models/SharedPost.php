@@ -6,6 +6,7 @@ namespace Siberfx\SocialAutopost\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -24,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 final class SharedPost extends Model
 {
+    use MassPrunable;
+
     public const STATUS_POSTED = 'posted';
 
     public const STATUS_FAILED = 'failed';
@@ -47,6 +50,24 @@ final class SharedPost extends Model
     public function shareable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * What model:prune deletes: history older than prune_after_days; nothing
+     * when that is null. A pruned share is forgotten, so wasPosted() no longer
+     * sees it and sharing the model again posts again.
+     *
+     * @return Builder<self>
+     */
+    public function prunable(): Builder
+    {
+        $days = config('social-autopost.prune_after_days');
+
+        if (! is_numeric($days) || (int) $days <= 0) {
+            return self::query()->whereRaw('1 = 0');
+        }
+
+        return self::query()->where('created_at', '<', now()->subDays((int) $days));
     }
 
     /**

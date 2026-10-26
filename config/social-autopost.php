@@ -214,6 +214,12 @@ return [
     // social:check-token and the expiry warnings: warn when fewer days remain.
     'expiry_warning_days' => 7,
 
+    // Share history older than this many days is deleted by model:prune
+    // (schedule it with --model=Siberfx\SocialAutopost\Models\SharedPost).
+    // Null keeps the history forever. A pruned share is forgotten: sharing
+    // the model again posts again.
+    'prune_after_days' => null,
+
     // How long a network's connection status is cached (seconds).
     'status_cache_ttl' => 300,
 

@@ -459,6 +459,19 @@ of failing — an import or backfill then trickles out instead of burning the qu
 A job the rate limit sends back to the queue spends one of its `job.tries` per round trip; set
 `job.retry_for` (seconds) to give jobs time instead of tries.
 
+## Share history
+
+Every share, posted or failed, is one row in `social_posts`. Keep it from growing forever by
+setting `prune_after_days` and scheduling Laravel's pruner:
+
+```php
+use Siberfx\SocialAutopost\Models\SharedPost;
+
+Schedule::command('model:prune', ['--model' => SharedPost::class])->daily();
+```
+
+A pruned share is forgotten: `wasPosted()` no longer sees it, and sharing the model again posts again.
+
 ## Commands
 
 | Command | Does |
@@ -545,7 +558,7 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `notifications` | `enabled`, `events`, `queued`, `tries`, `backoff`, `channels`. |
 | `networks.{key}.rate_limit` | `['posts' => n, 'per_seconds' => s]`: queued shares over it wait their turn. |
 | `job` | `tries`, `backoff`, `unique_for` and `retry_for` of the auto-post job. |
-| `expiry_warning_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
+| `expiry_warning_days`, `prune_after_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
 
 ## Tests
 
