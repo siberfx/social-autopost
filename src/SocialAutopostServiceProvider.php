@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siberfx\SocialAutopost;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -70,6 +71,16 @@ final class SocialAutopostServiceProvider extends ServiceProvider
         if (config('social-autopost.routes.enabled', true)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/social-autopost.php');
         }
+
+        // Expiry warnings without any setup: the token check runs on the
+        // app's scheduler (check_token_schedule, null to schedule it yourself).
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $cron = config('social-autopost.check_token_schedule');
+
+            if (is_string($cron) && $cron !== '') {
+                $schedule->command('social:check-token')->cron($cron);
+            }
+        });
 
         if ($this->app->runningInConsole()) {
             $this->publishes([

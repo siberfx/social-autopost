@@ -214,6 +214,10 @@ return [
     // social:check-token and the expiry warnings: warn when fewer days remain.
     'expiry_warning_days' => 7,
 
+    // When your app uses the scheduler, social:check-token runs by itself on
+    // this cron expression (daily at 08:00). Null: schedule it yourself.
+    'check_token_schedule' => '0 8 * * *',
+
     // Share history older than this many days is deleted by model:prune
     // (schedule it with --model=Siberfx\SocialAutopost\Models\SharedPost).
     // Null keeps the history forever. A pruned share is forgotten: sharing

@@ -481,7 +481,7 @@ A pruned share is forgotten: `wasPosted()` no longer sees it, and sharing the mo
 | `social:status` | Every network: enabled, auto-post, connected, status; then each network's pages, the selected ones marked `[x]`. |
 | `social:disconnect {network} [--force]` | Revokes and forgets one connection. Refuses a switched-off network. |
 | `social:share {network} {model} {id} [--page=*] [--force]` | Shares one model to one network now: to its selected pages, or to the `--page` ids given. |
-| `social:check-token [--days=]` | Fires `TokenExpiringSoon` for enabled networks expiring within `expiry_warning_days`. |
+| `social:check-token [--days=]` | Fires `TokenExpiringSoon` for enabled networks expiring within `expiry_warning_days`. Runs by itself on your app's scheduler, daily at 08:00 (`check_token_schedule`, null to schedule it yourself). |
 | `social:test-notification [--channel=]` | Sends a test to the enabled notification channels. |
 
 ## Notifications
@@ -558,7 +558,7 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `notifications` | `enabled`, `events`, `queued`, `tries`, `backoff`, `channels`. |
 | `networks.{key}.rate_limit` | `['posts' => n, 'per_seconds' => s]`: queued shares over it wait their turn. |
 | `job` | `tries`, `backoff`, `unique_for` and `retry_for` of the auto-post job. |
-| `expiry_warning_days`, `prune_after_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
+| `expiry_warning_days`, `check_token_schedule`, `prune_after_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
 
 ## Tests
 

@@ -5,6 +5,9 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+### Added
+- `social:check-token` now runs by itself on the app's scheduler, daily at 08:00, so expiry warnings work without any setup. `check_token_schedule` takes another cron expression, or null to schedule it yourself.
+
 ## [1.3.0] - 2026-10-26
 
 ### Added
