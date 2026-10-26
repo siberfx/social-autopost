@@ -37,6 +37,8 @@ final class SharedPost extends Model
 
     public const TRIGGER_CONSOLE = 'console';
 
+    public const TRIGGER_SCHEDULED = 'scheduled';
+
     protected $table = 'social_posts';
 
     protected $guarded = [];

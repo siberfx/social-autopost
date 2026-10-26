@@ -33,6 +33,7 @@ use Siberfx\SocialAutopost\SocialManager;
  * @method static list<string> selectedPages(string $key)
  * @method static Connection selectPages(string $key, array<int, string> $ids)
  * @method static void queue(Model&ShareableOnSocial $model, ?string $network = null, string $trigger = 'manual')
+ * @method static void shareAt(Model&ShareableOnSocial $model, \DateTimeInterface $when, ?string $network = null)
  * @method static bool wasPosted(Model $model, ?string $network = null, ?string $page = null)
  * @method static \Illuminate\Support\Collection<int, string> targets()
  *

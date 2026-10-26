@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siberfx\SocialAutopost;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -320,6 +321,25 @@ final class SocialManager
      */
     public function queue(Model&ShareableOnSocial $model, ?string $network = null, string $trigger = SharedPost::TRIGGER_MANUAL): void
     {
+        $this->dispatchJobs($model, $network, $trigger, null);
+    }
+
+    /**
+     * Queue a share for a moment in the future: to one network, or to every
+     * enabled and connected one. The job checks again when the time comes, so
+     * a model no longer live, a network switched off or disconnected since,
+     * or a model that already posted there post nothing.
+     *
+     * @throws NetworkDisabled|NotConnected|UnknownNetwork
+     */
+    public function shareAt(Model&ShareableOnSocial $model, DateTimeInterface $when, ?string $network = null): void
+    {
+        $this->dispatchJobs($model, $network, SharedPost::TRIGGER_SCHEDULED, $when);
+    }
+
+    /** One job per network, now or delayed until $at. */
+    private function dispatchJobs(Model&ShareableOnSocial $model, ?string $network, string $trigger, ?DateTimeInterface $at): void
+    {
         $networks = $network !== null ? [$network] : $this->targets()->all();
 
         foreach ($networks as $key) {
@@ -327,9 +347,11 @@ final class SocialManager
                 $this->assertReady($key);
             }
 
-            dispatch((new PublishToSocial($model->getMorphClass(), $model->getKey(), $key, $trigger))
+            $job = (new PublishToSocial($model->getMorphClass(), $model->getKey(), $key, $trigger))
                 ->onConnection(config('social-autopost.autopost.queue_connection'))
-                ->onQueue(config('social-autopost.autopost.queue')));
+                ->onQueue(config('social-autopost.autopost.queue'));
+
+            dispatch($at === null ? $job : $job->delay($at));
         }
     }
 

@@ -459,6 +459,19 @@ of failing — an import or backfill then trickles out instead of burning the qu
 A job the rate limit sends back to the queue spends one of its `job.tries` per round trip; set
 `job.retry_for` (seconds) to give jobs time instead of tries.
 
+## Scheduling a share
+
+`shareAt()` queues the share for a moment instead of now:
+
+```php
+Social::shareAt($article, now()->addDay()->setTime(9, 0), 'linkedin');
+Social::shareAt($article, $campaign->starts_at);   // every enabled, connected network
+```
+
+The job checks again when the time comes: a model no longer live, a network switched off or
+disconnected since, or a model that already posted there post nothing. The history records these
+shares with the `scheduled` trigger.
+
 ## Share history
 
 Every share, posted or failed, is one row in `social_posts`. Keep it from growing forever by
