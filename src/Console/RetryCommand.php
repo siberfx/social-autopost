@@ -37,11 +37,13 @@ final class RetryCommand extends Command
             return self::FAILURE;
         }
 
+        $option = $this->option('since');
+        $option = is_string($option) && $option !== '' ? $option : null;
+
         try {
-            $option = $this->option('since');
-            $since = is_string($option) && $option !== '' ? CarbonImmutable::parse($option) : null;
+            $since = $option !== null ? CarbonImmutable::parse($option) : null;
         } catch (Throwable) {
-            $this->components->error("Could not read [{$this->option('since')}] as a date or time.");
+            $this->components->error("Could not read [{$option}] as a date or time.");
 
             return self::FAILURE;
         }
