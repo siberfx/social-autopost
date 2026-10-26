@@ -9,7 +9,8 @@ use InvalidArgumentException;
 
 /**
  * What a model wants posted: a link with its preview, plus the post text, and
- * optionally an image or a video for the networks that post media (Instagram, TikTok).
+ * optionally an image or a video. Every network posts the media it supports;
+ * Instagram and TikTok post nothing without it.
  */
 final class LinkPost
 {
@@ -38,8 +39,9 @@ final class LinkPost
     }
 
     /**
-     * A public image the network downloads itself: Instagram posts it (JPEG),
-     * TikTok posts it as a photo. Networks that post links ignore it.
+     * A public image URL: Instagram posts it (JPEG), TikTok as a photo post,
+     * Facebook as a Page photo, and LinkedIn and X upload it and post it with
+     * the text (X needs the media.write scope).
      *
      * @throws InvalidArgumentException When the URL is not an absolute http(s) URL.
      */
@@ -52,8 +54,9 @@ final class LinkPost
     }
 
     /**
-     * A public video the network downloads itself: Instagram posts it as a Reel,
-     * TikTok as a video. Used instead of the image when both are set.
+     * A public video URL: Instagram posts it as a Reel, TikTok as a video,
+     * Facebook as a Page video — instead of the image when both are set.
+     * LinkedIn and X do not post video yet: they use the image, or the link alone.
      *
      * @throws InvalidArgumentException When the URL is not an absolute http(s) URL.
      */

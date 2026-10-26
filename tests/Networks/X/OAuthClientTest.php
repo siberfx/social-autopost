@@ -36,7 +36,7 @@ it('builds the PKCE authorization url with the callback route by default', funct
         'client_id' => 'x-client',
         'redirect_uri' => route('social-autopost.callback', ['network' => 'x']),
         'state' => 'state-1',
-        'scope' => 'tweet.read tweet.write users.read offline.access',
+        'scope' => 'tweet.read tweet.write users.read media.write offline.access',
         'code_challenge' => 'challenge-1',
         'code_challenge_method' => 'S256',
     ]);
@@ -74,7 +74,7 @@ it('exchanges a code with the verifier, the same redirect uri and basic auth', f
         'https://api.x.com/2/oauth2/token' => Http::response([
             'access_token' => 'access-1',
             'refresh_token' => 'refresh-1',
-            'scope' => 'tweet.read tweet.write users.read offline.access',
+            'scope' => 'tweet.read tweet.write users.read media.write offline.access',
         ]),
         'https://api.x.com/2/users/me*' => Http::response(['data' => [
             'id' => '99',
@@ -106,7 +106,7 @@ it('exchanges a code with the verifier, the same redirect uri and basic auth', f
         ->and($account->username)->toBe('ada')
         ->and($account->name)->toBe('Ada Lovelace')
         ->and($account->picture)->toBe('https://pbs.example/ada.jpg')
-        ->and($account->scopes)->toBe(['tweet.read', 'tweet.write', 'users.read', 'offline.access'])
+        ->and($account->scopes)->toBe(['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'])
         ->and($account->connectedAt)->not->toBeNull();
 });
 

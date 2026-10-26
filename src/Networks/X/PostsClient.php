@@ -18,13 +18,19 @@ final class PostsClient
      *
      * @throws RequestFailed
      */
-    public function create(string $accessToken, string $text): ?string
+    public function create(string $accessToken, string $text, ?string $mediaId = null): ?string
     {
+        $payload = ['text' => $text];
+
+        if ($mediaId !== null) {
+            $payload['media'] = ['media_ids' => [$mediaId]];
+        }
+
         try {
             $response = Http::withToken($accessToken)
                 ->timeout((int) config('social-autopost.http.timeout', 20))
                 ->acceptJson()
-                ->post(self::URL, ['text' => $text]);
+                ->post(self::URL, $payload);
         } catch (ConnectionException $e) {
             throw new RequestFailed('Could not reach X: '.$e->getMessage(), 0);
         }

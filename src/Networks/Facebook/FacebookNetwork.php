@@ -187,13 +187,22 @@ final class FacebookNetwork implements HasPages, SocialNetwork
         return $this->post($stored, $page, $post);
     }
 
-    /** @throws RequestFailed */
+    /**
+     * A link post, or the post's video or image when it carries one: Facebook
+     * downloads the media from its URL itself.
+     *
+     * @throws RequestFailed
+     */
     private function post(FacebookConnection $stored, string $pageId, LinkPost $post): ?string
     {
         $page = $this->requirePage($stored, $pageId);
 
         try {
-            return $this->graph->postLink($page['access_token'], $page['id'], $post);
+            return match (true) {
+                $post->videoUrl() !== null => $this->graph->postVideo($page['access_token'], $page['id'], $post),
+                $post->imageUrl() !== null => $this->graph->postPhoto($page['access_token'], $page['id'], $post),
+                default => $this->graph->postLink($page['access_token'], $page['id'], $post),
+            };
         } catch (RequestFailed $e) {
             if ($e->isUnauthorized()) {
                 $this->remember($stored, $this->connected($stored, 'expired'));

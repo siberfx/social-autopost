@@ -7,6 +7,7 @@ namespace Siberfx\SocialAutopost\Networks\X;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Siberfx\SocialAutopost\Contracts\ConnectionStore;
 use Siberfx\SocialAutopost\Contracts\ShareableOnSocial;
@@ -35,6 +36,7 @@ final class XNetwork implements SocialNetwork
         private readonly ConnectionStore $store,
         private readonly OAuthClient $oauth,
         private readonly PostsClient $posts,
+        private readonly MediaClient $media,
     ) {}
 
     public function key(): string
@@ -151,7 +153,8 @@ final class XNetwork implements SocialNetwork
     }
 
     /**
-     * Posts the link as the X text from XText, refreshing the token once on a 401.
+     * Posts the link as the X text from XText, with the post's image when the
+     * connection may write media, refreshing the token once on a 401.
      *
      * @throws NotConnected|RequestFailed
      */
@@ -159,9 +162,15 @@ final class XNetwork implements SocialNetwork
     {
         $account = $this->account() ?? throw new NotConnected;
         $text = XText::compose($post);
+        $image = $post->imageUrl();
+
+        if ($image !== null && ! in_array('media.write', $account->scopes, true)) {
+            Log::notice('X: the connection cannot write media, so the image is not posted. Connect X again to grant media.write.');
+            $image = null;
+        }
 
         try {
-            return $this->posts->create($account->accessToken, $text);
+            return $this->send($account, $text, $image);
         } catch (RequestFailed $e) {
             if (! $e->isUnauthorized()) {
                 throw $e;
@@ -175,8 +184,16 @@ final class XNetwork implements SocialNetwork
                 throw $e;
             }
 
-            return $this->posts->create($fresh->accessToken, $text);
+            return $this->send($fresh, $text, $image);
         }
+    }
+
+    /** Uploads the image (when there is one) and creates the post. */
+    private function send(XAccount $account, string $text, ?string $image): ?string
+    {
+        $mediaId = $image !== null ? $this->media->upload($account->accessToken, $image) : null;
+
+        return $this->posts->create($account->accessToken, $text, $mediaId);
     }
 
     /** The account lookup, refreshing once when X says the token expired. Status comes from the stored data plus the profile. */

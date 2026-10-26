@@ -30,7 +30,7 @@ beforeEach(function () {
 });
 
 /** Store an X connection, as a completed OAuth flow would. */
-function xSeedAccount(string $access = 'access-1', ?string $refresh = 'refresh-1', ?string $name = 'Ada'): void
+function xSeedAccount(string $access = 'access-1', ?string $refresh = 'refresh-1', ?string $name = 'Ada', array $scopes = ['tweet.write']): void
 {
     app(ConnectionStore::class)->put('x', (new XAccount(
         accessToken: $access,
@@ -38,7 +38,7 @@ function xSeedAccount(string $access = 'access-1', ?string $refresh = 'refresh-1
         username: 'ada',
         name: $name,
         picture: 'https://pbs.example/ada.jpg',
-        scopes: ['tweet.write'],
+        scopes: $scopes,
         connectedAt: CarbonImmutable::parse('2026-10-01T10:00:00Z'),
     ))->toArray());
 }
@@ -346,4 +346,51 @@ it('disconnects without calling X when nothing is stored', function () {
     expect(app(XNetwork::class)->disconnect())->toBeTrue();
 
     Http::assertNothingSent();
+});
+
+it('uploads the image and posts it when the connection may write media', function () {
+    xSeedAccount(scopes: ['tweet.write', 'media.write']);
+    Http::fake([
+        'https://cdn.example.com/cover.jpg' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        'https://api.x.com/2/media/upload' => Http::response(['data' => ['id' => 'media-9']]),
+        'https://api.x.com/2/tweets' => Http::response(['data' => ['id' => '557']], 201),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(app(XNetwork::class)->publish(new Post, $post))->toBe('557');
+
+    Http::assertSent(fn (OutgoingRequest $request) => str_contains($request->url(), '/2/media/upload'));
+    Http::assertSent(fn (OutgoingRequest $request) => str_contains($request->url(), '/2/tweets')
+        && $request['media'] === ['media_ids' => ['media-9']]);
+});
+
+it('posts the text without the image when the connection lacks media.write', function () {
+    xSeedAccount();
+    Http::fake(['https://api.x.com/2/tweets' => Http::response(['data' => ['id' => '558']], 201)]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(app(XNetwork::class)->publish(new Post, $post))->toBe('558');
+
+    Http::assertNotSent(fn (OutgoingRequest $request) => str_contains($request->url(), '/2/media/upload'));
+});
+
+it('refreshes once on a 401 from the media upload and uploads again with the new token', function () {
+    xSeedAccount(scopes: ['tweet.write', 'media.write']);
+    Http::fake([
+        'https://cdn.example.com/cover.jpg' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        'https://api.x.com/2/media/upload' => Http::sequence()
+            ->push(['detail' => 'Unauthorized'], 401)
+            ->push(['data' => ['id' => 'media-10']]),
+        'https://api.x.com/2/oauth2/token' => Http::response(['access_token' => 'access-2', 'refresh_token' => 'refresh-2']),
+        'https://api.x.com/2/tweets' => Http::response(['data' => ['id' => '559']], 201),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(app(XNetwork::class)->publish(new Post, $post))->toBe('559');
+
+    Http::assertSent(fn (OutgoingRequest $request) => str_contains($request->url(), '/2/tweets')
+        && $request->header('Authorization')[0] === 'Bearer access-2');
 });

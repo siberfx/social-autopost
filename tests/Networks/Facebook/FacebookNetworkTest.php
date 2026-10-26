@@ -335,3 +335,31 @@ it('reports the connection as disconnected once disconnected, even with a cached
 
     expect(network()->connection()->connected)->toBeFalse();
 });
+
+it('posts the photo with the commentary when the post carries an image', function () {
+    storeFacebook();
+    Http::fake(['https://graph.facebook.com/v25.0/1234567/photos' => Http::response(['id' => '99', 'post_id' => '1234567_99'])]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/c.jpg');
+
+    expect(network()->publish(publishedPost(), $post))->toBe('1234567_99');
+
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/photos')
+        && $request['url'] === 'https://cdn.example.com/c.jpg'
+        && str_contains((string) $request['message'], 'https://example.com/a'));
+});
+
+it('posts the video over the photo, with the commentary as its description', function () {
+    storeFacebook();
+    Http::fake(['https://graph.facebook.com/v25.0/1234567/videos' => Http::response(['id' => '77'])]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')
+        ->image('https://cdn.example.com/c.jpg')
+        ->video('https://cdn.example.com/v.mp4');
+
+    expect(network()->publish(publishedPost(), $post))->toBe('77');
+
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/videos')
+        && $request['file_url'] === 'https://cdn.example.com/v.mp4');
+    Http::assertNotSent(fn (ClientRequest $request) => str_contains($request->url(), '/photos') || str_contains($request->url(), '/feed'));
+});

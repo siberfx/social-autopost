@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -317,4 +318,60 @@ it('clears the cached status on disconnect', function () {
     linkedInNetwork()->disconnect();
 
     expect(Cache::has('social-autopost:status:linkedin:'.hash('sha256', 'member-token')))->toBeFalse();
+});
+
+it('uploads the image and publishes an image post when the post carries one', function () {
+    storeLinkedIn();
+    Http::fake([
+        'https://api.linkedin.com/rest/images?action=initializeUpload' => Http::response([
+            'value' => ['uploadUrl' => 'https://upload.linkedin.com/u/1', 'image' => 'urn:li:image:img1'],
+        ]),
+        'https://cdn.example.com/cover.jpg' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        'https://upload.linkedin.com/u/1' => Http::response('', 201),
+        'https://api.linkedin.com/rest/posts' => Http::response('', 201, ['x-restli-id' => 'urn:li:share:9']),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(linkedInNetwork()->publish(linkedInPublishedPost(), $post))->toBe('urn:li:share:9');
+
+    Http::assertSent(fn (ClientRequest $request) => $request->url() === 'https://upload.linkedin.com/u/1'
+        && $request->body() === 'jpeg-bytes'
+        && $request->hasHeader('Content-Type', 'image/jpeg'));
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts')
+        && $request['content'] === ['media' => ['id' => 'urn:li:image:img1', 'title' => 'Title']]);
+});
+
+it('does not post when the image cannot be downloaded, and the failure is not retryable', function () {
+    storeLinkedIn();
+    Http::fake([
+        'https://api.linkedin.com/rest/images?action=initializeUpload' => Http::response([
+            'value' => ['uploadUrl' => 'https://upload.linkedin.com/u/1', 'image' => 'urn:li:image:img1'],
+        ]),
+        'https://cdn.example.com/cover.jpg' => Http::response('gone', 404),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    try {
+        linkedInNetwork()->publish(linkedInPublishedPost(), $post);
+        $this->fail('Expected RequestFailed.');
+    } catch (RequestFailed $e) {
+        expect($e->isRetryable())->toBeFalse()
+            ->and($e->isUnauthorized())->toBeFalse();
+    }
+
+    Http::assertNotSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts'));
+});
+
+it('keeps the link post when the post carries only a video', function () {
+    storeLinkedIn();
+    Http::fake(['https://api.linkedin.com/rest/posts' => Http::response('', 201, ['x-restli-id' => 'urn:li:share:10'])]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->video('https://cdn.example.com/clip.mp4');
+
+    expect(linkedInNetwork()->publish(linkedInPublishedPost(), $post))->toBe('urn:li:share:10');
+
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts')
+        && isset($request['content']['article']));
 });

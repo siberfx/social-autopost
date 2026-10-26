@@ -136,21 +136,34 @@ X text is composed to 280 characters, counting every URL as 23. LinkedIn escapes
 reserves for mentions and hashtags. Facebook sends the link in its own field and takes the preview
 from the page's Open Graph tags.
 
-### Instagram and TikTok: posts need media
+### Posting media
 
-Instagram and TikTok post images and videos, not links. Give the post a public URL the network can
-download; the commentary becomes the caption. LinkedIn, X and Facebook ignore the media.
+Give the post an image or a video as a public URL, and every network posts what it supports:
 
 ```php
 public function toSocialPost(): LinkPost
 {
     return LinkPost::make(route('blog.show', $this), $this->title)
         ->commentary("{title}\n\nRead more: {url}")
-        ->image($this->cover_url)        // Instagram: JPEG. TikTok: a photo post.
-        ->video($this->clip_url);        // Instead of the image when set: a Reel / a TikTok video.
+        ->image($this->cover_url)        // see the table: what each network does with it
+        ->video($this->clip_url);        // used instead of the image where video is supported
 }
 ```
 
+| Network | Image | Video |
+|---|---|---|
+| LinkedIn | Uploaded and posted as an image post, the commentary as its text | Not yet: the link is posted instead |
+| X | Uploaded and posted with the text. Needs the `media.write` scope: accounts connected before it was asked post the text alone until they reconnect. | Not yet: the text is posted alone |
+| Facebook | A Page photo, the commentary as its message (a photo post has no link field, so the link rides in the text) | A Page video, the commentary as its description |
+| Instagram | Posted (JPEG) | A Reel |
+| TikTok | A photo post | A video |
+
+Facebook, Instagram and TikTok download the media from its URL themselves; for LinkedIn and X your
+server downloads and uploads it (`http.upload_timeout` seconds).
+
+### Instagram and TikTok: posts need media
+
+Instagram and TikTok post images and videos, not links; the commentary becomes the caption.
 A post without media fails on these two networks with a clear message and is not retried; the
 others still post. Links in captions are not clickable on either network.
 

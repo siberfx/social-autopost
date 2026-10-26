@@ -162,6 +162,48 @@ final class GraphClient
     }
 
     /**
+     * Post the photo to the Page with the commentary as its message. Facebook
+     * downloads the image from its URL itself. A photo post has no link field,
+     * so the link rides in the text.
+     *
+     * @return string|null The feed post id (preferred for links), or the photo id.
+     *
+     * @throws RequestFailed
+     */
+    public function postPhoto(string $pageToken, string $pageId, LinkPost $post): ?string
+    {
+        $response = $this->send(fn () => $this->graph()->withToken($pageToken)->post("{$pageId}/photos", [
+            'url' => $post->imageUrl(),
+            'message' => $post->commentaryText(),
+        ]));
+
+        $id = $response->json('post_id') ?? $response->json('id');
+
+        return is_string($id) && $id !== '' ? $id : null;
+    }
+
+    /**
+     * Post the video to the Page with the commentary as its description.
+     * Facebook downloads the video from its URL itself and processes it in the
+     * background, so the post appears once that is done.
+     *
+     * @return string|null The video id.
+     *
+     * @throws RequestFailed
+     */
+    public function postVideo(string $pageToken, string $pageId, LinkPost $post): ?string
+    {
+        $response = $this->send(fn () => $this->graph()->withToken($pageToken)->post("{$pageId}/videos", [
+            'file_url' => $post->videoUrl(),
+            'description' => $post->commentaryText(),
+        ]));
+
+        $id = $response->json('id');
+
+        return is_string($id) && $id !== '' ? $id : null;
+    }
+
+    /**
      * Remove the app's permissions for the user, which revokes the Page token
      * too. Best effort: false when Facebook refuses or cannot be reached.
      */

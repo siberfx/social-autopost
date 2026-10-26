@@ -15,17 +15,22 @@ final class PostsClient
     private const URL = 'https://api.linkedin.com/rest/posts';
 
     /**
+     * Creates an article (link) post, or an image post when $imageUrn names
+     * an image ImagesClient uploaded.
+     *
      * @return string|null The post URN; null when LinkedIn accepted the post without returning its id.
      *
      * @throws RequestFailed
      */
-    public function create(string $accessToken, string $authorUrn, LinkPost $post): ?string
+    public function create(string $accessToken, string $authorUrn, LinkPost $post, ?string $imageUrn = null): ?string
     {
-        $article = array_filter([
-            'source' => $post->url(),
-            'title' => $post->title(),
-            'description' => $post->descriptionText(),
-        ], fn (string $value) => $value !== '');
+        $content = $imageUrn !== null
+            ? ['media' => ['id' => $imageUrn, 'title' => $post->title()]]
+            : ['article' => array_filter([
+                'source' => $post->url(),
+                'title' => $post->title(),
+                'description' => $post->descriptionText(),
+            ], fn (string $value) => $value !== '')];
 
         try {
             $response = Http::withToken($accessToken)
@@ -44,7 +49,7 @@ final class PostsClient
                         'targetEntities' => [],
                         'thirdPartyDistributionChannels' => [],
                     ],
-                    'content' => ['article' => $article],
+                    'content' => $content,
                     'lifecycleState' => 'PUBLISHED',
                     'isReshareDisabledByAuthor' => false,
                 ]);

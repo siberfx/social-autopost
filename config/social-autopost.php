@@ -57,7 +57,9 @@ return [
             // Optional: a PKCE-only public app has no secret.
             'client_secret' => env('X_CLIENT_SECRET'),
             'redirect_uri' => env('X_REDIRECT_URI'),
-            'scopes' => ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+            // media.write lets posts carry an image; connections made without
+            // it post the text alone until the account connects again.
+            'scopes' => ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'],
             // Any network takes a rate_limit: queued shares over it wait their
             // turn instead of failing. X's free tier allows 17 posts a day:
             // 'rate_limit' => ['posts' => 17, 'per_seconds' => 86400],
@@ -229,6 +231,8 @@ return [
 
     'http' => [
         'timeout' => 20,
+        // Media uploads (LinkedIn and X take the bytes) get longer.
+        'upload_timeout' => 120,
     ],
 
 ];

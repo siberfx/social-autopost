@@ -44,6 +44,7 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
         private readonly ConnectionStore $store,
         private readonly OAuthClient $oauth,
         private readonly PostsClient $posts,
+        private readonly ImagesClient $images,
     ) {}
 
     public function key(): string
@@ -211,6 +212,10 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
     }
 
     /**
+     * An article (link) post, or an image post when the LinkPost carries an
+     * image: the image is uploaded for the author first. A video is not
+     * supported on LinkedIn yet and the link is posted instead.
+     *
      * @param  array<string, mixed>  $stored
      *
      * @throws RequestFailed
@@ -219,8 +224,12 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
     {
         $token = $this->token($stored);
 
+        $imageUrl = $post->imageUrl();
+
         try {
-            return $this->posts->create($token, $author, $post);
+            $image = $imageUrl !== null ? $this->images->upload($token, $author, $imageUrl) : null;
+
+            return $this->posts->create($token, $author, $post, $image);
         } catch (RequestFailed $e) {
             // LinkedIn refused the token: show it as expired until the admin connects again.
             if ($e->isUnauthorized()) {
