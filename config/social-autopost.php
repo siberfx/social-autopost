@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Siberfx\SocialAutopost\Networks\Bluesky\BlueskyNetwork;
 use Siberfx\SocialAutopost\Networks\Facebook\FacebookNetwork;
 use Siberfx\SocialAutopost\Networks\Instagram\InstagramNetwork;
 use Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork;
@@ -101,6 +102,19 @@ return [
             'processing_checks' => 10,
             'processing_interval' => 5,
             'brand' => ['color' => '#E4405F'],
+        ],
+
+        'bluesky' => [
+            'enabled' => (bool) env('BLUESKY_ENABLED', false),
+            'autopost' => (bool) env('BLUESKY_AUTOPOST', false),
+            'class' => BlueskyNetwork::class,
+            // No OAuth app and no consent screen: the account's handle (or
+            // email) and an app password, made under Settings → Privacy and
+            // security → App passwords. "Connect" signs in on the server.
+            'service' => env('BLUESKY_SERVICE', 'https://bsky.social'),
+            'identifier' => env('BLUESKY_IDENTIFIER'),
+            'app_password' => env('BLUESKY_APP_PASSWORD'),
+            'brand' => ['color' => '#0085FF'],
         ],
 
         'mastodon' => [

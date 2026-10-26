@@ -34,6 +34,7 @@ final class DoctorCommand extends Command
         'instagram' => ['client_id', 'client_secret'],
         'tiktok' => ['client_key', 'client_secret'],
         'mastodon' => ['instance', 'client_id', 'client_secret'],
+        'bluesky' => ['identifier', 'app_password'],
     ];
 
     public function handle(SocialManager $social, Notifier $notifier): int

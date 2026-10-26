@@ -29,6 +29,7 @@ FACEBOOK_ENABLED=false
 INSTAGRAM_ENABLED=false    # Instagram and TikTok need an image or video, see below
 TIKTOK_ENABLED=false
 MASTODON_ENABLED=false     # also set MASTODON_INSTANCE, e.g. https://mastodon.social
+BLUESKY_ENABLED=false      # no OAuth app: BLUESKY_IDENTIFIER and BLUESKY_APP_PASSWORD
 ```
 
 ```php
@@ -128,6 +129,7 @@ your URL differs.
 | Instagram | developers.facebook.com → your app → Instagram → API setup with Instagram login → Business login settings | `https://example.com/social/instagram/callback` | `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET` (the **Instagram** app ID and secret, not the Facebook ones) | `instagram_business_basic`, `instagram_business_content_publish`; a Business or Creator account |
 | TikTok | developers.tiktok.com → your app → Login Kit and Content Posting API (Direct Post on) | `https://example.com/social/tiktok/callback` | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `user.info.basic`, `video.publish`; verify the domain your media is served from |
 | Mastodon | Your instance → Preferences → Development → New application | `https://example.com/social/mastodon/callback` | `MASTODON_INSTANCE` (e.g. `https://mastodon.social`), `MASTODON_CLIENT_ID`, `MASTODON_CLIENT_SECRET` | `read:accounts write:statuses write:media`; no app review, and the token does not expire |
+| Bluesky | bsky.app → Settings → Privacy and security → App passwords | None: no OAuth app and no consent screen. "Connect" signs in on the server. | `BLUESKY_IDENTIFIER` (handle or email), `BLUESKY_APP_PASSWORD` (`BLUESKY_SERVICE` for another PDS) | — |
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
 `LINKEDIN_API_VERSION`, `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
@@ -137,7 +139,9 @@ first managed Page when empty), `FACEBOOK_API_VERSION`.
 X text is composed to 280 characters and Mastodon statuses to 500, counting every URL as 23.
 LinkedIn escapes characters it reserves for mentions and hashtags. Facebook sends the link in its
 own field and takes the preview from the page's Open Graph tags. `MASTODON_VISIBILITY` sets who
-sees Mastodon statuses (`public`, `unlisted`, `private` or `direct`).
+sees Mastodon statuses (`public`, `unlisted`, `private` or `direct`). Bluesky posts carry the link
+as an embed card — title, description and the post's image as its thumbnail — so the 300-character
+text is the title and description, or your commentary as written when it fits.
 
 ### Posting media
 
@@ -161,6 +165,7 @@ public function toSocialPost(): LinkPost
 | Instagram | Posted (JPEG) | A Reel |
 | TikTok | A photo post | A video |
 | Mastodon | Uploaded and attached to the status | Not yet: the link is posted instead |
+| Bluesky | Uploaded as the link card's thumbnail | Not yet: the card is posted without one |
 
 Facebook, Instagram and TikTok download the media from its URL themselves; for LinkedIn and X your
 server downloads and uploads it (`http.upload_timeout` seconds).
