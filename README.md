@@ -494,6 +494,7 @@ A pruned share is forgotten: `wasPosted()` no longer sees it, and sharing the mo
 | `social:status` | Every network: enabled, auto-post, connected, status; then each network's pages, the selected ones marked `[x]`. |
 | `social:disconnect {network} [--force]` | Revokes and forgets one connection. Refuses a switched-off network. |
 | `social:share {network} {model} {id} [--page=*] [--force]` | Shares one model to one network now: to its selected pages, or to the `--page` ids given. |
+| `social:retry [network] [--since=] [--dry-run]` | Queues the failed shares that never posted, so they are tried again. A failure whose model has since posted there is left alone. |
 | `social:check-token [--days=]` | Fires `TokenExpiringSoon` for enabled networks expiring within `expiry_warning_days`. Runs by itself on your app's scheduler, daily at 08:00 (`check_token_schedule`, null to schedule it yourself). |
 | `social:test-notification [--channel=]` | Sends a test to the enabled notification channels. |
 

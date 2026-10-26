@@ -15,6 +15,7 @@ use Siberfx\SocialAutopost\Console\CheckTokenCommand;
 use Siberfx\SocialAutopost\Console\DisconnectCommand;
 use Siberfx\SocialAutopost\Console\InstallCommand;
 use Siberfx\SocialAutopost\Console\PageCommand;
+use Siberfx\SocialAutopost\Console\RetryCommand;
 use Siberfx\SocialAutopost\Console\ShareCommand;
 use Siberfx\SocialAutopost\Console\StatusCommand;
 use Siberfx\SocialAutopost\Console\TestNotificationCommand;
@@ -101,6 +102,7 @@ final class SocialAutopostServiceProvider extends ServiceProvider
                 StatusCommand::class,
                 DisconnectCommand::class,
                 ShareCommand::class,
+                RetryCommand::class,
                 CheckTokenCommand::class,
                 TestNotificationCommand::class,
             ]);
