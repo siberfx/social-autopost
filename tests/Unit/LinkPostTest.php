@@ -62,3 +62,23 @@ it('keeps an image and a video as absolute, encoded URLs without changing the or
 it('refuses a relative image or video URL', function (string $method) {
     LinkPost::make('https://example.com/a', 'A')->{$method}('/storage/a.jpg');
 })->with(['image', 'video'])->throws(InvalidArgumentException::class);
+
+it('tailors the post per network with on(), leaving the other networks the post as it is', function () {
+    $post = LinkPost::make('https://example.com/a', 'Hello')
+        ->on('x', fn (LinkPost $post) => $post->commentary('{title} {url}'))
+        ->on(['instagram', 'tiktok'], fn (LinkPost $post) => $post->commentary('A caption'));
+
+    expect($post->forNetwork('x')->commentaryText())->toBe('Hello https://example.com/a')
+        ->and($post->forNetwork('instagram')->commentaryText())->toBe('A caption')
+        ->and($post->forNetwork('tiktok')->commentaryText())->toBe('A caption')
+        ->and($post->forNetwork('linkedin'))->toBe($post)
+        ->and($post->commentaryText())->toBe("Hello\n\nhttps://example.com/a");
+});
+
+it('hands the override the post with everything set so far', function () {
+    $post = LinkPost::make('https://example.com/a', 'Hello')
+        ->description('The description')
+        ->on('x', fn (LinkPost $post) => $post->commentary($post->descriptionText()));
+
+    expect($post->forNetwork('x')->commentaryText())->toBe('The description');
+});

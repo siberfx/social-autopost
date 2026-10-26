@@ -9,6 +9,7 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 - `social:check-token` now runs by itself on the app's scheduler, daily at 08:00, so expiry warnings work without any setup. `check_token_schedule` takes another cron expression, or null to schedule it yourself.
 - `Social::shareAt($model, $when, $network = null)` queues a share for a moment in the future — "post this Tuesday at 09:00". The job checks again when the time comes, so a model no longer live, a network since disconnected, or a model that already posted there post nothing. The history records the `scheduled` trigger.
 - `social:retry [network] [--since=] [--dry-run]` queues the failed shares that never posted, so they are tried again. A failure whose model has since posted to that network (and page) is settled and left alone.
+- `LinkPost::on($networks, $closure)` tailors one post per network — hashtags on LinkedIn, tighter copy for X, a caption for Instagram — without changing what the other networks post. The closure gets the post and returns the version that network publishes.
 
 ## [1.3.0] - 2026-10-26
 

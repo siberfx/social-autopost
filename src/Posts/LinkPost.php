@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siberfx\SocialAutopost\Posts;
 
+use Closure;
 use InvalidArgumentException;
 
 /**
@@ -21,6 +22,9 @@ final class LinkPost
     private ?string $image = null;
 
     private ?string $video = null;
+
+    /** @var array<string, Closure> One override per network key; forNetwork() checks what it returns. */
+    private array $overrides = [];
 
     private function __construct(
         private readonly string $url,
@@ -123,6 +127,55 @@ final class LinkPost
     {
         $copy = clone $this;
         $copy->commentary = $template;
+
+        return $copy;
+    }
+
+    /**
+     * Tailor the post for one network, or several: the closure gets the post
+     * and returns the version that network publishes — hashtags on LinkedIn,
+     * tighter text for X, a caption for Instagram.
+     *
+     *     LinkPost::make($url, $title)
+     *         ->on('x', fn (LinkPost $post) => $post->commentary('{title} {url}'))
+     *         ->on(['instagram', 'tiktok'], fn (LinkPost $post) => $post->commentary($caption));
+     *
+     * @param  string|list<string>  $networks
+     * @param  Closure(self): self  $override
+     */
+    public function on(string|array $networks, Closure $override): self
+    {
+        $copy = clone $this;
+
+        foreach ((array) $networks as $network) {
+            $copy->overrides[$network] = $override;
+        }
+
+        return $copy;
+    }
+
+    /**
+     * The post as one network publishes it: the on() override applied, or the
+     * post as it is. Called once per network before publishing.
+     *
+     * @throws InvalidArgumentException When the override does not return a LinkPost.
+     */
+    public function forNetwork(string $network): self
+    {
+        $override = $this->overrides[$network] ?? null;
+
+        if ($override === null) {
+            return $this;
+        }
+
+        $resolved = $override($this);
+
+        if (! $resolved instanceof self) {
+            throw new InvalidArgumentException("The post's on('{$network}') override must return the post.");
+        }
+
+        $copy = clone $resolved;
+        $copy->overrides = [];
 
         return $copy;
     }

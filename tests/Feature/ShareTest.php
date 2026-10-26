@@ -8,6 +8,7 @@ use Siberfx\SocialAutopost\Exceptions\NotShareable;
 use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Facades\Social;
 use Siberfx\SocialAutopost\Models\SharedPost;
+use Siberfx\SocialAutopost\Posts\LinkPost;
 use Siberfx\SocialAutopost\Tests\Fixtures\FailingNetwork;
 use Siberfx\SocialAutopost\Tests\Fixtures\FakeNetwork;
 use Siberfx\SocialAutopost\Tests\Fixtures\Post;
@@ -88,4 +89,18 @@ it('builds the link post the network receives from toSocialPost()', function () 
         'title' => 'Hello',
         'description' => 'A short summary.',
     ]);
+});
+
+it('publishes the post tailored with on() for that network', function () {
+    $this->network('fake');
+    $this->connect('fake');
+    $post = Post::create(['title' => 'Hello', 'status' => 'published']);
+
+    Social::shareTo($post, 'fake', SharedPost::TRIGGER_MANUAL,
+        LinkPost::make('https://example.com/a', 'Hello')
+            ->on('fake', fn ($tailored) => $tailored->commentary('Tailored for fake'))
+            ->on('other', fn ($tailored) => $tailored->commentary('Not this one')));
+
+    expect(FakeNetwork::$published)->toHaveCount(1)
+        ->and(FakeNetwork::$published[0]['commentary'])->toBe('Tailored for fake');
 });

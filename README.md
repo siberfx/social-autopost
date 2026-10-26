@@ -66,6 +66,25 @@ class Article extends Model implements ShareableOnSocial
 <x-social-autopost::share-button :model="$article" />  {{-- every enabled, connected network --}}
 ```
 
+## One post, tailored per network
+
+`toSocialPost()` builds one post for every network. Tailor it where a network wants other text —
+hashtags on LinkedIn, tighter copy for X, a caption for Instagram — with `on()`:
+
+```php
+public function toSocialPost(): LinkPost
+{
+    return LinkPost::make(route('blog.show', $this), $this->title)
+        ->commentary("New on the blog: {title}\n\n{url}")
+        ->image($this->cover_url)
+        ->on('x', fn (LinkPost $post) => $post->commentary('{title} {url} #laravel'))
+        ->on(['instagram', 'tiktok'], fn (LinkPost $post) => $post->commentary($this->caption));
+}
+```
+
+Each network gets the override named for it, or the post as it is. The closure runs just before
+publishing, once per network.
+
 ## Switching networks on and off
 
 Every network is listed in `config/social-autopost.php` under `networks`:

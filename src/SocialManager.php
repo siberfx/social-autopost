@@ -239,7 +239,7 @@ final class SocialManager
         $post ??= $model->toSocialPost();
 
         if (! $driver instanceof HasPages) {
-            return $this->record($model, $network, null, $driver->publish($model, $post), $trigger);
+            return $this->record($model, $network, null, $driver->publish($model, $post->forNetwork($network)), $trigger);
         }
 
         $first = null;
@@ -271,7 +271,7 @@ final class SocialManager
     {
         $this->assertReady($network);
 
-        $id = $this->pagesOf($network)->publishToPage($model, $post ?? $model->toSocialPost(), $page);
+        $id = $this->pagesOf($network)->publishToPage($model, ($post ?? $model->toSocialPost())->forNetwork($network), $page);
 
         return $this->record($model, $network, $page, $id, $trigger);
     }
