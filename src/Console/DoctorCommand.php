@@ -33,6 +33,7 @@ final class DoctorCommand extends Command
         'facebook' => ['app_id', 'app_secret'],
         'instagram' => ['client_id', 'client_secret'],
         'tiktok' => ['client_key', 'client_secret'],
+        'mastodon' => ['instance', 'client_id', 'client_secret'],
     ];
 
     public function handle(SocialManager $social, Notifier $notifier): int

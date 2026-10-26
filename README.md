@@ -28,6 +28,7 @@ X_ENABLED=false
 FACEBOOK_ENABLED=false
 INSTAGRAM_ENABLED=false    # Instagram and TikTok need an image or video, see below
 TIKTOK_ENABLED=false
+MASTODON_ENABLED=false     # also set MASTODON_INSTANCE, e.g. https://mastodon.social
 ```
 
 ```php
@@ -126,15 +127,17 @@ your URL differs.
 | Facebook | developers.facebook.com → your app → Facebook Login | `https://example.com/social/facebook/callback` | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; the account must manage the Page |
 | Instagram | developers.facebook.com → your app → Instagram → API setup with Instagram login → Business login settings | `https://example.com/social/instagram/callback` | `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET` (the **Instagram** app ID and secret, not the Facebook ones) | `instagram_business_basic`, `instagram_business_content_publish`; a Business or Creator account |
 | TikTok | developers.tiktok.com → your app → Login Kit and Content Posting API (Direct Post on) | `https://example.com/social/tiktok/callback` | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `user.info.basic`, `video.publish`; verify the domain your media is served from |
+| Mastodon | Your instance → Preferences → Development → New application | `https://example.com/social/mastodon/callback` | `MASTODON_INSTANCE` (e.g. `https://mastodon.social`), `MASTODON_CLIENT_ID`, `MASTODON_CLIENT_SECRET` | `read:accounts write:statuses write:media`; no app review, and the token does not expire |
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
 `LINKEDIN_API_VERSION`, `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
 [Choosing pages](#choosing-pages)), `FACEBOOK_PAGE_ID` (the Page selected after connecting; the
 first managed Page when empty), `FACEBOOK_API_VERSION`.
 
-X text is composed to 280 characters, counting every URL as 23. LinkedIn escapes characters it
-reserves for mentions and hashtags. Facebook sends the link in its own field and takes the preview
-from the page's Open Graph tags.
+X text is composed to 280 characters and Mastodon statuses to 500, counting every URL as 23.
+LinkedIn escapes characters it reserves for mentions and hashtags. Facebook sends the link in its
+own field and takes the preview from the page's Open Graph tags. `MASTODON_VISIBILITY` sets who
+sees Mastodon statuses (`public`, `unlisted`, `private` or `direct`).
 
 ### Posting media
 
@@ -157,6 +160,7 @@ public function toSocialPost(): LinkPost
 | Facebook | A Page photo, the commentary as its message (a photo post has no link field, so the link rides in the text) | A Page video, the commentary as its description |
 | Instagram | Posted (JPEG) | A Reel |
 | TikTok | A photo post | A video |
+| Mastodon | Uploaded and attached to the status | Not yet: the link is posted instead |
 
 Facebook, Instagram and TikTok download the media from its URL themselves; for LinkedIn and X your
 server downloads and uploads it (`http.upload_timeout` seconds).

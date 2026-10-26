@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Siberfx\SocialAutopost\Networks\Facebook\FacebookNetwork;
 use Siberfx\SocialAutopost\Networks\Instagram\InstagramNetwork;
 use Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork;
+use Siberfx\SocialAutopost\Networks\Mastodon\MastodonNetwork;
 use Siberfx\SocialAutopost\Networks\TikTok\TikTokNetwork;
 use Siberfx\SocialAutopost\Networks\X\XNetwork;
 use Siberfx\SocialAutopost\Notifications\Channels\MailChannel;
@@ -100,6 +101,23 @@ return [
             'processing_checks' => 10,
             'processing_interval' => 5,
             'brand' => ['color' => '#E4405F'],
+        ],
+
+        'mastodon' => [
+            'enabled' => (bool) env('MASTODON_ENABLED', false),
+            'autopost' => (bool) env('MASTODON_AUTOPOST', false),
+            'class' => MastodonNetwork::class,
+            // Your instance, e.g. https://mastodon.social. Register the app on
+            // it under Preferences → Development, with the same redirect URI
+            // and scopes. The token does not expire.
+            'instance' => env('MASTODON_INSTANCE'),
+            'client_id' => env('MASTODON_CLIENT_ID'),
+            'client_secret' => env('MASTODON_CLIENT_SECRET'),
+            'redirect_uri' => env('MASTODON_REDIRECT_URI'),
+            'scopes' => ['read:accounts', 'write:statuses', 'write:media'],
+            // public, unlisted, private or direct.
+            'visibility' => env('MASTODON_VISIBILITY', 'public'),
+            'brand' => ['color' => '#6364FF'],
         ],
 
         'tiktok' => [
