@@ -5,7 +5,7 @@
 [![PHP Version](https://img.shields.io/packagist/dependency-v/siberfx/social-autopost/php.svg?style=flat-square)](https://packagist.org/packages/siberfx/social-autopost)
 [![Laravel](https://img.shields.io/badge/laravel-12%20%7C%2013-FF2D20.svg?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com)
 [![Total Downloads](https://img.shields.io/packagist/dt/siberfx/social-autopost.svg?style=flat-square)](https://packagist.org/packages/siberfx/social-autopost)
-[![License](https://img.shields.io/packagist/l/siberfx/social-autopost.svg?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/packagist/l/siberfx/social-autopost.svg?style=flat-square)](https://github.com/siberfx/social-autopost/blob/main/LICENSE)
 
 Share your Eloquent models to LinkedIn, X, Facebook, Instagram, TikTok, Mastodon and Bluesky, each
 one switched on or off on its own, and add more networks later with one class and one config entry.
@@ -647,4 +647,4 @@ vendor/bin/phpstan analyse --memory-limit=1G
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/siberfx/social-autopost/blob/main/LICENSE).
