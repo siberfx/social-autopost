@@ -5,6 +5,11 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-27
+
+### Changed
+- README badges: latest version, tests, PHP version, Laravel versions, downloads and license.
+
 ## [1.5.0] - 2026-11-27
 
 ### Changed

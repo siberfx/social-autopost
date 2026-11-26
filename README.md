@@ -1,5 +1,12 @@
 # Social Autopost for Laravel
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/siberfx/social-autopost.svg?style=flat-square)](https://packagist.org/packages/siberfx/social-autopost)
+[![Tests](https://img.shields.io/github/actions/workflow/status/siberfx/social-autopost/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/siberfx/social-autopost/actions/workflows/tests.yml)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/siberfx/social-autopost/php.svg?style=flat-square)](https://packagist.org/packages/siberfx/social-autopost)
+[![Laravel](https://img.shields.io/badge/laravel-12%20%7C%2013-FF2D20.svg?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com)
+[![Total Downloads](https://img.shields.io/packagist/dt/siberfx/social-autopost.svg?style=flat-square)](https://packagist.org/packages/siberfx/social-autopost)
+[![License](https://img.shields.io/packagist/l/siberfx/social-autopost.svg?style=flat-square)](LICENSE)
+
 Share your Eloquent models to LinkedIn, X, Facebook, Instagram, TikTok, Mastodon and Bluesky, each
 one switched on or off on its own, and add more networks later with one class and one config entry.
 
