@@ -14,7 +14,7 @@ one switched on or off on its own, and add more networks later with one class an
 - Ready-made connection cards and share buttons (Tailwind or Bootstrap 5, Blade or Livewire), or headless.
 - `php artisan social:doctor` says what is missing when something does not work.
 
-Requires PHP 8.4+ and Laravel 12 or 13.
+Requires PHP 8.2+ and Laravel 12 or 13 (Laravel 13 needs PHP 8.3+).
 
 ## Quick start
 

@@ -5,6 +5,14 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-27
+
+### Changed
+- PHP 8.2 and 8.3 are supported again: the package now requires PHP `^8.2` instead of `^8.4`. Laravel 12 runs on PHP 8.2+, Laravel 13 on PHP 8.3+. CI tests PHP 8.2 through 8.5.
+
+### Upgrading
+- Nothing to change.
+
 ## [1.4.0] - 2026-10-26
 
 ### Added
