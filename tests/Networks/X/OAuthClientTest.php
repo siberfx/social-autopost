@@ -154,6 +154,20 @@ it('fails the exchange when X does not return the account for the new token', fu
     app(OAuthClient::class)->exchange('code-1', 'verifier-1');
 })->throws(RequestFailed::class, 'X did not return the account for the new token.');
 
+it('keeps the new tokens when X does not answer the account lookup', function (int $status) {
+    Http::fake([
+        'https://api.x.com/2/oauth2/token' => Http::response(['access_token' => 'access-1', 'refresh_token' => 'refresh-1', 'scope' => 'tweet.read tweet.write']),
+        'https://api.x.com/2/users/me*' => Http::response(['title' => 'Too Many Requests'], $status),
+    ]);
+
+    $account = app(OAuthClient::class)->exchange('code-1', 'verifier-1');
+
+    expect($account->accessToken)->toBe('access-1')
+        ->and($account->refreshToken)->toBe('refresh-1')
+        ->and($account->username)->toBeNull()
+        ->and($account->name)->toBeNull();
+})->with(['rate limited' => 429, 'X down' => 503]);
+
 it('refreshes tokens and returns the rotated refresh token', function () {
     Http::fake(['https://api.x.com/2/oauth2/token' => Http::response([
         'access_token' => 'access-2',

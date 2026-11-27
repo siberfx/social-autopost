@@ -86,7 +86,10 @@ final class OAuthClient
         $refreshToken = $token->json('refresh_token');
         $account = $this->profile($accessToken);
 
-        if ($account['status'] !== 'active') {
+        // Only a refused token fails the connection. /2/users/me has a small daily
+        // limit on X's free tier, so a lookup X does not answer (429, 5xx, timeout)
+        // keeps the new tokens and leaves the name and picture for later.
+        if ($account['status'] === 'expired') {
             throw new RequestFailed('X did not return the account for the new token.');
         }
 

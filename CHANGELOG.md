@@ -5,6 +5,13 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-28
+
+### Added
+- The media download behind the LinkedIn and X uploads also reads a local file path. Apps that call the network clients directly (for example `Networks\LinkedIn\ImagesClient::upload()`) can pass media kept on their own server instead of a public URL. `LinkPost::image()` still takes a URL. A missing file fails without a retry.
+
+### Fixed
+- Connecting X no longer fails when X does not answer the account lookup after the token exchange. `/2/users/me` has a small daily limit on X's free tier, so a 429, a server error or a timeout keeps the new tokens, and the name and picture show up on the next status check. A token X refuses still fails the connection.
 ## [1.7.0] - 2026-11-28
 
 ### Added
