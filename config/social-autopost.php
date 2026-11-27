@@ -58,6 +58,11 @@ return [
             'api_version' => env('LINKEDIN_API_VERSION', '202609'),
             // PUBLIC or CONNECTIONS.
             'visibility' => env('LINKEDIN_VISIBILITY', 'PUBLIC'),
+            // What a post's image becomes: "post" an image post (the link card is
+            // replaced; a failed upload fails the share), or "thumbnail" the picture
+            // on the link card (the link stays clickable; a failed upload posts the
+            // card without it and logs a warning).
+            'image' => env('LINKEDIN_IMAGE', 'post'),
             // Links a post in notifications; {id} is the post id.
             'post_url' => 'https://www.linkedin.com/feed/update/{id}/',
             'brand' => ['color' => '#0A66C2'],

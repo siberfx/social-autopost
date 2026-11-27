@@ -364,6 +364,70 @@ it('does not post when the image cannot be downloaded, and the failure is not re
     Http::assertNotSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts'));
 });
 
+it('shows the image on the link card in thumbnail mode', function () {
+    storeLinkedIn();
+    config(['social-autopost.networks.linkedin.image' => 'thumbnail']);
+    Http::fake([
+        'https://api.linkedin.com/rest/images?action=initializeUpload' => Http::response([
+            'value' => ['uploadUrl' => 'https://upload.linkedin.com/u/1', 'image' => 'urn:li:image:img1'],
+        ]),
+        'https://cdn.example.com/cover.jpg' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        'https://upload.linkedin.com/u/1' => Http::response('', 201),
+        'https://api.linkedin.com/rest/posts' => Http::response('', 201, ['x-restli-id' => 'urn:li:share:11']),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(linkedInNetwork()->publish(linkedInPublishedPost(), $post))->toBe('urn:li:share:11');
+
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts')
+        && $request['content']['article']['source'] === 'https://example.com/a'
+        && $request['content']['article']['title'] === 'Title'
+        && $request['content']['article']['thumbnail'] === 'urn:li:image:img1'
+        && ! isset($request['content']['media']));
+});
+
+it('posts the link card without the image when a thumbnail upload fails', function (int $status) {
+    storeLinkedIn();
+    config(['social-autopost.networks.linkedin.image' => 'thumbnail']);
+    Log::spy();
+    Http::fake([
+        'https://api.linkedin.com/rest/images?action=initializeUpload' => Http::response([
+            'value' => ['uploadUrl' => 'https://upload.linkedin.com/u/1', 'image' => 'urn:li:image:img1'],
+        ]),
+        'https://cdn.example.com/cover.jpg' => Http::response('gone', $status),
+        'https://api.linkedin.com/rest/posts' => Http::response('', 201, ['x-restli-id' => 'urn:li:share:12']),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    expect(linkedInNetwork()->publish(linkedInPublishedPost(), $post))->toBe('urn:li:share:12');
+
+    Http::assertSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts')
+        && ! isset($request['content']['article']['thumbnail'])
+        && $request['content']['article']['source'] === 'https://example.com/a');
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'LinkedIn image upload failed'))->once();
+})->with(['missing image' => 404, 'image host down' => 503]);
+
+it('still fails a thumbnail upload LinkedIn refuses the token for', function () {
+    storeLinkedIn();
+    config(['social-autopost.networks.linkedin.image' => 'thumbnail']);
+    Http::fake([
+        'https://api.linkedin.com/rest/images?action=initializeUpload' => Http::response(['message' => 'Expired'], 401),
+    ]);
+
+    $post = LinkPost::make('https://example.com/a', 'Title')->image('https://cdn.example.com/cover.jpg');
+
+    try {
+        linkedInNetwork()->publish(linkedInPublishedPost(), $post);
+        $this->fail('Expected RequestFailed.');
+    } catch (RequestFailed $e) {
+        expect($e->isUnauthorized())->toBeTrue();
+    }
+
+    Http::assertNotSent(fn (ClientRequest $request) => str_contains($request->url(), '/rest/posts'));
+});
+
 it('keeps the link post when the post carries only a video', function () {
     storeLinkedIn();
     Http::fake(['https://api.linkedin.com/rest/posts' => Http::response('', 201, ['x-restli-id' => 'urn:li:share:10'])]);

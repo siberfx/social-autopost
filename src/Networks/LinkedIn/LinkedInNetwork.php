@@ -237,9 +237,10 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
     }
 
     /**
-     * An article (link) post, or an image post when the LinkPost carries an
-     * image: the image is uploaded for the author first. A video is not
-     * supported on LinkedIn yet and the link is posted instead.
+     * An article (link) post. When the LinkPost carries an image, it is
+     * uploaded for the author first and becomes an image post, or with
+     * networks.linkedin.image = "thumbnail" the picture on the link card. A
+     * video is not supported on LinkedIn yet and the link is posted instead.
      *
      * @param  array<string, mixed>  $stored
      *
@@ -250,11 +251,16 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
         $token = $this->token($stored);
 
         $imageUrl = $post->imageUrl();
+        $asThumbnail = config('social-autopost.networks.linkedin.image', 'post') === 'thumbnail';
 
         try {
-            $image = $imageUrl !== null ? $this->images->upload($token, $author, $imageUrl) : null;
+            $image = match (true) {
+                $imageUrl === null => null,
+                $asThumbnail => $this->thumbnail($token, $author, $imageUrl),
+                default => $this->images->upload($token, $author, $imageUrl),
+            };
 
-            return $this->posts->create($token, $author, $post, $image);
+            return $this->posts->create($token, $author, $post, $image, $asThumbnail);
         } catch (RequestFailed $e) {
             // LinkedIn refused the token: show it as expired until the admin connects again.
             if ($e->isUnauthorized()) {
@@ -262,6 +268,28 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
             }
 
             throw $e;
+        }
+    }
+
+    /**
+     * Best effort: a thumbnail only decorates the link card, so a failed
+     * upload is logged and the card goes out without it. A refused token
+     * still throws, so the connection shows as expired.
+     *
+     * @throws RequestFailed When LinkedIn refuses the token.
+     */
+    private function thumbnail(string $token, string $author, string $imageUrl): ?string
+    {
+        try {
+            return $this->images->upload($token, $author, $imageUrl);
+        } catch (RequestFailed $e) {
+            if ($e->isUnauthorized()) {
+                throw $e;
+            }
+
+            Log::warning('LinkedIn image upload failed; posting the link without it.', ['image' => $imageUrl, 'error' => $e->getMessage()]);
+
+            return null;
         }
     }
 

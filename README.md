@@ -143,7 +143,7 @@ your URL differs.
 | Bluesky | bsky.app → Settings → Privacy and security → App passwords | None: no OAuth app and no consent screen. "Connect" signs in on the server. | `BLUESKY_IDENTIFIER` (handle or email), `BLUESKY_APP_PASSWORD` (`BLUESKY_SERVICE` for another PDS) | — |
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
-`LINKEDIN_API_VERSION`, `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
+`LINKEDIN_API_VERSION`, `LINKEDIN_IMAGE` (`post` or `thumbnail`, see [Images and video](#posting-media)), `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
 [Choosing pages](#choosing-pages)), `LINKEDIN_ORGANIZATION_IDS`, `LINKEDIN_COMMUNITY` and
 `LINKEDIN_COMMUNITY_PAGE` (see [LinkedIn comments, reactions and statistics](#linkedin-comments-reactions-and-statistics)),
 `FACEBOOK_PAGE_ID` (the Page selected after connecting; the first managed Page when empty),
@@ -172,13 +172,19 @@ public function toSocialPost(): LinkPost
 
 | Network | Image | Video |
 |---|---|---|
-| LinkedIn | Uploaded and posted as an image post, the commentary as its text | Not yet: the link is posted instead |
+| LinkedIn | Uploaded and posted as an image post, the commentary as its text. With `LINKEDIN_IMAGE=thumbnail`, shown on the link card instead, so the link stays clickable | Not yet: the link is posted instead |
 | X | Uploaded and posted with the text. Needs the `media.write` scope: accounts connected before it was asked post the text alone until they reconnect. | Not yet: the text is posted alone |
 | Facebook | A Page photo, the commentary as its message (a photo post has no link field, so the link rides in the text) | A Page video, the commentary as its description |
 | Instagram | Posted (JPEG) | A Reel |
 | TikTok | A photo post | A video |
 | Mastodon | Uploaded and attached to the status | Not yet: the link is posted instead |
 | Bluesky | Uploaded as the link card's thumbnail | Not yet: the card is posted without one |
+
+**LinkedIn: image post or link card.** By default (`LINKEDIN_IMAGE=post`) the image replaces the link card,
+and a failed image download or upload fails the share. With `LINKEDIN_IMAGE=thumbnail` the post stays a link
+post and the image is the card's picture. LinkedIn does not read the page's `og:image`, so without it the card
+has no picture. A thumbnail is best effort: when the image cannot be downloaded or uploaded, the card goes out
+without it and a warning is logged. A refused token still fails the share.
 
 Facebook, Instagram and TikTok download the media from its URL themselves; for LinkedIn and X your
 server downloads and uploads it (`http.upload_timeout` seconds).
@@ -746,6 +752,7 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `networks.linkedin.organizations`, `.organization_scopes` | Also list and post to the member's organization pages (needs the Community Management API). |
 | `networks.linkedin.organization_ids` (`LINKEDIN_ORGANIZATION_IDS`) | Only these organization pages (ids or URNs, comma separated or an array); empty keeps every administered page. Applies on the next connect. |
 | `networks.linkedin.community` (`LINKEDIN_COMMUNITY`), `.community_scopes` | Also ask for `r_organization_social rw_organization_admin`, which `Social::linkedin()->community()` needs to read comments, reactions and statistics (needs the Community Management API). Off by default. |
+| `networks.linkedin.image` (`LINKEDIN_IMAGE`) | `post` (default): a post's image becomes an image post. `thumbnail`: the picture on the link card, best effort. |
 | `networks.linkedin.community_page` (`LINKEDIN_COMMUNITY_PAGE`) | The page `community()` works on when a call names none (id or URN); null uses the first selected organization page. |
 | `networks.{key}.post_url`, `.brand` | Notification links and the UI colour and logo. |
 | `networks.{key}.hint`, `.disconnect_note` | The card note, and what disconnecting means when the network cannot revoke (`''` hides). |

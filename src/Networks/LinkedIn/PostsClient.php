@@ -16,21 +16,25 @@ final class PostsClient
 
     /**
      * Creates an article (link) post, or an image post when $imageUrn names
-     * an image ImagesClient uploaded.
+     * an image ImagesClient uploaded. With $asThumbnail the image is shown on
+     * the article's link card instead, and the post stays a link post.
      *
      * @return string|null The post URN; null when LinkedIn accepted the post without returning its id.
      *
      * @throws RequestFailed
      */
-    public function create(string $accessToken, string $authorUrn, LinkPost $post, ?string $imageUrn = null): ?string
+    public function create(string $accessToken, string $authorUrn, LinkPost $post, ?string $imageUrn = null, bool $asThumbnail = false): ?string
     {
-        $content = $imageUrn !== null
+        $article = array_filter([
+            'source' => $post->url(),
+            'title' => $post->title(),
+            'description' => $post->descriptionText(),
+            'thumbnail' => $asThumbnail ? (string) $imageUrn : '',
+        ], fn (string $value) => $value !== '');
+
+        $content = $imageUrn !== null && ! $asThumbnail
             ? ['media' => ['id' => $imageUrn, 'title' => $post->title()]]
-            : ['article' => array_filter([
-                'source' => $post->url(),
-                'title' => $post->title(),
-                'description' => $post->descriptionText(),
-            ], fn (string $value) => $value !== '')];
+            : ['article' => $article];
 
         try {
             $response = Http::withToken($accessToken)

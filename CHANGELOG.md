@@ -5,6 +5,11 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-28
+
+### Added
+- LinkedIn preview images on link posts: `LINKEDIN_IMAGE=thumbnail` (`networks.linkedin.image`) shows a post's image as the picture on the link card, uploaded through LinkedIn's Images API as the page posting it, so the link stays clickable. LinkedIn does not read the page's `og:image`, so link posts had no picture before. A thumbnail is best effort: an image that cannot be downloaded or uploaded is logged as a warning and the card goes out without it. A refused token still fails the share. The default stays `post`: the image becomes an image post, as before.
+
 ## [1.6.0] - 2026-11-28
 
 ### Added
