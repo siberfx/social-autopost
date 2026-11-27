@@ -5,6 +5,21 @@ All notable changes to `siberfx/social-autopost` are documented here. This proje
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-28
+
+### Added
+- LinkedIn's Community Management API through `Social::linkedin()->community()`. You can list a page's posts, read a post (`post()`) and delete it (`deletePost()`). You can list, create, reply to and delete comments (`comments()`, `comment()`, `deleteComment()`), and list, add and remove reactions (`reactions()`, `react()`, `unreact()`). You can read a post's reaction and comment counts (`summary()`) and an organization page's followers and share statistics, lifetime or over a date range (`followers()`, `statistics()`). A post can be a URN or a LinkedIn `SharedPost` from the share history. Comments and reactions are made as one of the connection's pages, by default the page the share went to. A `401` shows the connection as expired, as a failed share does.
+- `Social::linkedin()`: the LinkedIn driver, typed, for what only LinkedIn offers. It refuses a switched-off LinkedIn like the other facade methods. `LinkedInNetwork::community()` is there for code that injects the driver.
+- New data objects `Comment`, `Reaction`, `SocialSummary` and `PageStatistics` under `Networks\LinkedIn\Community`, each with `toArray()`.
+- `LINKEDIN_COMMUNITY=true` (`networks.linkedin.community`) also asks for `r_organization_social` and `rw_organization_admin` (`networks.linkedin.community_scopes`). Both need the Community Management API product.
+- `LINKEDIN_COMMUNITY_PAGE` (`networks.linkedin.community_page`): the page `community()` works on when a call names none. `posts()`, `followers()` and `statistics()` take an optional page, and comments and reactions on a URN are made as this page. `defaultPage()` returns it: the configured page, else the first selected organization page, else the first one.
+- `LINKEDIN_ORGANIZATION_IDS` (`networks.linkedin.organization_ids`): list only these LinkedIn organization pages, by id or URN, instead of every page the member administers. Applies on the next connect.
+- `SharedPost::STATUS_DELETED`: `deletePost()` marks the LinkedIn share records of the deleted post with it, so they no longer count as posted.
+- A Troubleshooting section in the README.
+
+### Upgrading
+- Nothing to migrate: `status` is a string column. To use the community calls, add the Community Management API product to your LinkedIn app, set `LINKEDIN_COMMUNITY=true` and reconnect LinkedIn.
+
 ## [1.5.1] - 2026-11-27
 
 ### Changed

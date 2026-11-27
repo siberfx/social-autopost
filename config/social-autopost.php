@@ -41,6 +41,19 @@ return [
             // LinkedIn refuses the login. Off: the member's own profile is the only page.
             'organizations' => (bool) env('LINKEDIN_ORGANIZATIONS', false),
             'organization_scopes' => ['r_organization_admin', 'w_organization_social'],
+            // Only these organization pages, by id or URN: "2414183,5550101". Empty:
+            // every page the member administers. Takes effect on the next connect.
+            'organization_ids' => env('LINKEDIN_ORGANIZATION_IDS', ''),
+            // Community Management API beyond posting, through Social::linkedin()->community():
+            // read page posts, comments and reactions, moderate comments, and read follower
+            // and share statistics. On: the login also asks for community_scopes, which
+            // need the same product as organizations. Off: community() still works with
+            // whatever scopes the token has.
+            'community' => (bool) env('LINKEDIN_COMMUNITY', false),
+            'community_scopes' => ['r_organization_social', 'rw_organization_admin'],
+            // The organization page community() works on when a call names none, by id
+            // or URN. Null: the first selected organization page, else the first one.
+            'community_page' => env('LINKEDIN_COMMUNITY_PAGE'),
             // LinkedIn-Version header (YYYYMM).
             'api_version' => env('LINKEDIN_API_VERSION', '202609'),
             // PUBLIC or CONNECTIONS.

@@ -59,13 +59,18 @@ final class OAuthClient
         ], '', '&', PHP_QUERY_RFC3986);
     }
 
-    /** @return list<string> The configured scopes, plus the organization scopes when organization pages are on. */
+    /** @return list<string> The configured scopes, plus the organization and community scopes when each is on. */
     public function requestedScopes(): array
     {
         $scopes = array_map('strval', (array) config('social-autopost.networks.linkedin.scopes', []));
 
         if (self::organizationsEnabled()) {
             $extra = (array) config('social-autopost.networks.linkedin.organization_scopes', ['r_organization_admin', 'w_organization_social']);
+            $scopes = [...$scopes, ...array_map('strval', $extra)];
+        }
+
+        if (self::communityEnabled()) {
+            $extra = (array) config('social-autopost.networks.linkedin.community_scopes', ['r_organization_social', 'rw_organization_admin']);
             $scopes = [...$scopes, ...array_map('strval', $extra)];
         }
 
@@ -76,6 +81,36 @@ final class OAuthClient
     public static function organizationsEnabled(): bool
     {
         return (bool) config('social-autopost.networks.linkedin.organizations', false);
+    }
+
+    /** Whether the Community Management API scopes are asked for (networks.linkedin.community). */
+    public static function communityEnabled(): bool
+    {
+        return (bool) config('social-autopost.networks.linkedin.community', false);
+    }
+
+    /**
+     * networks.linkedin.organization_ids as URNs: ids ("2414183") or URNs, in
+     * an array or a comma-separated string. Empty means every organization
+     * page the member administers.
+     *
+     * @return list<string>
+     */
+    public static function onlyOrganizations(): array
+    {
+        $only = config('social-autopost.networks.linkedin.organization_ids', []);
+        $items = is_string($only) ? explode(',', $only) : (array) $only;
+        $urns = [];
+
+        foreach ($items as $item) {
+            $item = is_scalar($item) ? trim((string) $item) : '';
+
+            if ($item !== '') {
+                $urns[] = str_starts_with($item, self::ORGANIZATION_PREFIX) ? $item : self::ORGANIZATION_PREFIX.$item;
+            }
+        }
+
+        return array_values(array_unique($urns));
     }
 
     /**
@@ -141,7 +176,8 @@ final class OAuthClient
 
     /**
      * The organization pages the member may post to: those where they are an
-     * administrator or content administrator. Needs r_organization_admin
+     * administrator or content administrator, limited to organization_ids
+     * when that is set. Needs r_organization_admin
      * (Community Management API). Never throws: a failure logs a warning and
      * returns [], so connecting never fails because of pages.
      *
@@ -168,6 +204,7 @@ final class OAuthClient
         }
 
         $elements = $response->json('elements');
+        $only = self::onlyOrganizations();
         $urns = [];
 
         foreach (is_array($elements) ? $elements : [] as $element) {
@@ -177,7 +214,7 @@ final class OAuthClient
 
             $urn = self::stringOrNull($element['organization'] ?? null) ?? self::stringOrNull($element['organizationalTarget'] ?? null);
 
-            if ($urn !== null && str_starts_with($urn, self::ORGANIZATION_PREFIX)) {
+            if ($urn !== null && str_starts_with($urn, self::ORGANIZATION_PREFIX) && ($only === [] || in_array($urn, $only, true))) {
                 $urns[$urn] = true;
             }
         }

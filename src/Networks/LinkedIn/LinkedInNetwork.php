@@ -22,6 +22,8 @@ use Siberfx\SocialAutopost\Exceptions\ConnectionFailed;
 use Siberfx\SocialAutopost\Exceptions\NotConfigured;
 use Siberfx\SocialAutopost\Exceptions\NotConnected;
 use Siberfx\SocialAutopost\Exceptions\RequestFailed;
+use Siberfx\SocialAutopost\Networks\LinkedIn\Community\Community;
+use Siberfx\SocialAutopost\Networks\LinkedIn\Community\CommunityClient;
 use Siberfx\SocialAutopost\Posts\LinkPost;
 use Throwable;
 
@@ -29,7 +31,8 @@ use Throwable;
  * LinkedIn as a social network: one member account connected through
  * "Sign In with LinkedIn" and posts through the Posts API, as the member
  * and, with networks.linkedin.organizations on, as the organization pages
- * they run.
+ * they run. community() reaches the rest of the Community Management API
+ * (comments, reactions, statistics) for the same connection.
  *
  * The stored data is an array: access_token, author_urn, name, email,
  * picture, scopes, expires_at, connected_at, pages and selected_pages. The
@@ -45,7 +48,29 @@ final class LinkedInNetwork implements HasPages, SocialNetwork
         private readonly OAuthClient $oauth,
         private readonly PostsClient $posts,
         private readonly ImagesClient $images,
+        private readonly CommunityClient $community,
     ) {}
+
+    /**
+     * LinkedIn's Community Management API for this connection: posts,
+     * comments, reactions, engagement and organization page statistics. A 401
+     * from any of its calls shows the connection as expired, as a failed share does.
+     *
+     * @throws NotConnected
+     */
+    public function community(): Community
+    {
+        $stored = $this->stored() ?? throw new NotConnected($this->label().' is not connected.');
+        $token = $this->token($stored);
+
+        return new Community(
+            $this->community,
+            $token,
+            self::pagesOf($stored),
+            self::selectedOf($stored),
+            fn () => $this->remember($token, $this->connection()->withStatus('expired')),
+        );
+    }
 
     public function key(): string
     {

@@ -16,6 +16,7 @@ use Siberfx\SocialAutopost\SocialManager;
 /**
  * @method static list<string> keys()
  * @method static SocialNetwork network(string $key)
+ * @method static \Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork linkedin(string $key = 'linkedin')
  * @method static \Illuminate\Support\Collection<int, string> enabled()
  * @method static bool isEnabled(string $key)
  * @method static bool autopostEnabled(string $key)

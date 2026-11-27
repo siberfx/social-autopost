@@ -14,6 +14,7 @@ one switched on or off on its own, and add more networks later with one class an
 - A switched-off network is invisible: no UI, no routes (404), no auto-post, no sharing, and its commands say so.
 - One connection per network, stored encrypted; one share history for all networks, prunable by age.
 - LinkedIn and Facebook list the pages an account can post to; choose one or more and every share goes to each.
+- LinkedIn's Community Management API: read and moderate comments, react, delete posts, and read engagement and page statistics through `Social::linkedin()->community()`.
 - One post per model, carrying a link and optionally an image or video; tailor its text per network with `on()`.
 - Auto-post runs on a queue, once per model and network, with retries only when a network asks for it,
   rate limits that make a big import wait its turn, `shareAt()` for later, and `social:retry` for what failed.
@@ -143,8 +144,10 @@ your URL differs.
 
 Optional settings per network: `LINKEDIN_VISIBILITY` (`PUBLIC` or `CONNECTIONS`),
 `LINKEDIN_API_VERSION`, `LINKEDIN_ORGANIZATIONS` (also post as organization pages, see
-[Choosing pages](#choosing-pages)), `FACEBOOK_PAGE_ID` (the Page selected after connecting; the
-first managed Page when empty), `FACEBOOK_API_VERSION`.
+[Choosing pages](#choosing-pages)), `LINKEDIN_ORGANIZATION_IDS`, `LINKEDIN_COMMUNITY` and
+`LINKEDIN_COMMUNITY_PAGE` (see [LinkedIn comments, reactions and statistics](#linkedin-comments-reactions-and-statistics)),
+`FACEBOOK_PAGE_ID` (the Page selected after connecting; the first managed Page when empty),
+`FACEBOOK_API_VERSION`.
 
 X text is composed to 280 characters and Mastodon statuses to 500, counting every URL as 23.
 LinkedIn escapes characters it reserves for mentions and hashtags. Facebook sends the link in its
@@ -304,6 +307,122 @@ The login then also asks for `r_organization_admin` and `w_organization_social`
 administrator or content administrator. Reconnect after switching it on. Leave it off without the
 product: LinkedIn refuses a login that asks for scopes the app does not have. If LinkedIn will not
 list the organizations, the connection still works with the profile only, and a warning is logged.
+
+To list only some of them, for example the one company the site belongs to, name them by id or URN:
+
+```dotenv
+LINKEDIN_ORGANIZATION_IDS=2414183,5550101
+```
+
+`networks.linkedin.organization_ids` takes a comma-separated string or an array. Empty keeps every
+page the member administers. It applies when connecting, so reconnect after changing it.
+
+### LinkedIn comments, reactions and statistics
+
+Besides posting, the LinkedIn driver gives you the rest of LinkedIn's Community Management API for
+the connected account: read and delete posts, read and moderate comments, react, and read engagement
+and organization page statistics. It is LinkedIn-only, so it lives on the LinkedIn driver rather than
+on every network. `Social::linkedin()` returns that driver, typed, and refuses a switched-off LinkedIn
+like the other facade methods do:
+
+```php
+use Siberfx\SocialAutopost\Facades\Social;
+
+$community = Social::linkedin()->community();   // throws NotConnected when LinkedIn is not connected
+```
+
+Inject `Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork` and call `community()` on it if you
+prefer. The access token never leaves the server.
+
+**Switch it on.** Reading page posts, comments and reactions needs `r_organization_social`, and the
+statistics need `rw_organization_admin`. Like the organization scopes, LinkedIn grants them only to
+apps with the **Community Management API** product. Once your app has it:
+
+```dotenv
+LINKEDIN_ORGANIZATIONS=true
+LINKEDIN_COMMUNITY=true
+```
+
+then reconnect. Change the scopes under `networks.linkedin.community_scopes`. Commenting and reacting
+as the member's profile only needs `w_member_social`, which is always requested. Reading comments on
+the profile's own posts needs `r_member_social`, which LinkedIn keeps for approved partners. With
+`LINKEDIN_COMMUNITY` off, `community()` still works with whatever scopes the token has.
+
+**Work on one page.** If the site belongs to one company, keep only its page and make it the default:
+
+```dotenv
+LINKEDIN_ORGANIZATION_IDS=2414183        # only these pages are listed when connecting (comma separated)
+LINKEDIN_COMMUNITY_PAGE=2414183          # the page community calls use when you name none
+```
+
+`LINKEDIN_COMMUNITY_PAGE` (`networks.linkedin.community_page`) must be one of the connection's pages.
+Without it, the default is the first selected organization page, then the first organization page.
+`defaultPage()` tells you which page that is (null when the connection has none). Both settings take
+an id or a full URN.
+
+```php
+$community->statistics();                     // the default page, lifetime
+$community->posts();                          // its recent posts
+$community->comment($urn, 'Thanks!');         // commented as that page
+```
+
+**Pass a post** either as a post URN (`urn:li:share:…`, `urn:li:ugcPost:…`) or as a LinkedIn
+`SharedPost` from the [share history](#share-history), for example
+`$article->socialPosts()->where('network', 'linkedin')->latest()->first()`. The **actor** (who comments
+or reacts) must be one of the connection's [pages](#choosing-pages). It defaults to the page the share
+went to (its `target`), otherwise `LINKEDIN_COMMUNITY_PAGE`, otherwise the first selected page.
+
+```php
+use Siberfx\SocialAutopost\Networks\LinkedIn\Community\Reaction;
+
+$post = $article->socialPosts()->where('network', 'linkedin')->latest()->first();
+
+// Engagement
+$summary = $community->summary($post);       // SocialSummary
+$summary->reactions;                         // ['LIKE' => 12, 'PRAISE' => 3]
+$summary->totalReactions();                  // 15
+$summary->comments;                          // 7
+
+// Comments
+$comments = $community->comments($post, count: 20, start: 0);   // list<Comment>: id, urn, actor, text, parent, createdAt
+$community->comment($post, 'Thanks for reading!');              // as the page it was posted to
+$community->comment($post, 'Glad it helped', replyTo: $comments[0]);
+$community->comment('urn:li:share:7212…', 'Hi', actor: 'urn:li:organization:2414183');
+$community->deleteComment($post, $comments[0]);                 // a Comment, or its id
+
+// Reactions
+$community->reactions($post);                // list<Reaction>: type, actor, root, createdAt
+$community->react($post, Reaction::PRAISE);  // LIKE, PRAISE, EMPATHY, INTEREST, APPRECIATION, ENTERTAINMENT
+$community->unreact($post);
+
+// Posts
+$community->posts('urn:li:organization:2414183', count: 10);    // the page's recent posts, as LinkedIn returns them
+$community->post($post);                     // one post as an array, null when it is gone
+$community->deletePost($post);               // deleted on LinkedIn; its share records become "deleted"
+
+// Organization pages only
+$community->followers('urn:li:organization:2414183');           // int
+$stats = $community->statistics('urn:li:organization:2414183'); // lifetime PageStatistics
+$stats = $community->statistics('urn:li:organization:2414183', now()->subDays(30));   // last 30 days
+$stats->toArray();
+// ['organization' => 'urn:li:organization:2414183', 'followers' => 1520, 'impressions' => 1000,
+//  'unique_impressions' => 800, 'clicks' => 40, 'likes' => 30, 'comments' => 20, 'shares' => 10, 'engagement' => 0.1]
+```
+
+The data objects (`Comment`, `Reaction`, `SocialSummary`, `PageStatistics`, under
+`Siberfx\SocialAutopost\Networks\LinkedIn\Community`) each have `toArray()` to send from your own JSON
+endpoints, and `Comment` and `Reaction` keep LinkedIn's full answer in `raw`. LinkedIn caps `count` at 100.
+
+**Errors.** A LinkedIn refusal throws `RequestFailed` with LinkedIn's message and HTTP status. A `401`
+also shows the connection as `expired`, as a failed share does. A page that is not one of the
+connection's pages, an unknown reaction type, empty comment text, or a `SharedPost` without a
+`post_id` or to another network throws `InvalidArgumentException` before LinkedIn is called. Deleting
+a post, comment or reaction that is already gone succeeds.
+
+> `deletePost()` sets every LinkedIn share record of that post to `SharedPost::STATUS_DELETED`
+> (`deleted`). A deleted record no longer counts as posted: `wasPosted()` ignores it, and once no
+> LinkedIn share of the model is left posted, auto-post shares it to LinkedIn again the next time it
+> goes live.
 
 ### Facebook Pages
 
@@ -625,6 +744,9 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `networks.{key}.enabled`, `.autopost`, `.class` | The switches and the driver. |
 | `networks.{key}.*` | The network's own keys (credentials, API version, page id…). |
 | `networks.linkedin.organizations`, `.organization_scopes` | Also list and post to the member's organization pages (needs the Community Management API). |
+| `networks.linkedin.organization_ids` (`LINKEDIN_ORGANIZATION_IDS`) | Only these organization pages (ids or URNs, comma separated or an array); empty keeps every administered page. Applies on the next connect. |
+| `networks.linkedin.community` (`LINKEDIN_COMMUNITY`), `.community_scopes` | Also ask for `r_organization_social rw_organization_admin`, which `Social::linkedin()->community()` needs to read comments, reactions and statistics (needs the Community Management API). Off by default. |
+| `networks.linkedin.community_page` (`LINKEDIN_COMMUNITY_PAGE`) | The page `community()` works on when a call names none (id or URN); null uses the first selected organization page. |
 | `networks.{key}.post_url`, `.brand` | Notification links and the UI colour and logo. |
 | `networks.{key}.hint`, `.disconnect_note` | The card note, and what disconnecting means when the network cannot revoke (`''` hides). |
 | `connection_store` | Where connections are kept (encrypted, `DatabaseConnectionStore` by default). |
@@ -635,6 +757,18 @@ Each event carries the network key: `Connected`, `Disconnected`, `Shared`, `Shar
 | `networks.{key}.rate_limit` | `['posts' => n, 'per_seconds' => s]`: queued shares over it wait their turn. |
 | `job` | `tries`, `backoff`, `unique_for` and `retry_for` of the auto-post job. |
 | `expiry_warning_days`, `check_token_schedule`, `prune_after_days`, `status_cache_ttl`, `http.timeout` | Tuning. |
+
+## Troubleshooting
+
+Start with `php artisan social:doctor --ping`. For LinkedIn's community calls:
+
+| Symptom | Cause and fix |
+|---|---|
+| `community()` throws *403* / *ACCESS_DENIED* | The token lacks the scope: set `LINKEDIN_COMMUNITY=true` and reconnect. `Social::connection('linkedin')->scopes` lists the granted scopes. Reading comments on the member's own profile needs `r_member_social`, which most apps cannot get. |
+| `?social=linkedin&state=error` mentioning `r_organization_social` or `rw_organization_admin` | `LINKEDIN_COMMUNITY=true` but the app is not approved for the Community Management API yet: switch it off until it is. |
+| *This LinkedIn connection has no organization page* | `statistics()` and `followers()` need an organization page: set `LINKEDIN_ORGANIZATIONS=true` and reconnect, or check `LINKEDIN_ORGANIZATION_IDS`. |
+| *[…] is not a page of this LinkedIn account* | `LINKEDIN_COMMUNITY_PAGE` or the `actor` names a page the connection does not list. Reconnect after changing `LINKEDIN_ORGANIZATION_IDS`, and check the member still administers the page. |
+| A page is missing after setting `LINKEDIN_ORGANIZATION_IDS` | The list applies on connect: reconnect. Ids are the number in `urn:li:organization:…`. |
 
 ## Tests
 

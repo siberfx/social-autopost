@@ -25,6 +25,7 @@ use Siberfx\SocialAutopost\Exceptions\RequestFailed;
 use Siberfx\SocialAutopost\Exceptions\UnknownNetwork;
 use Siberfx\SocialAutopost\Jobs\PublishToSocial;
 use Siberfx\SocialAutopost\Models\SharedPost;
+use Siberfx\SocialAutopost\Networks\LinkedIn\LinkedInNetwork;
 use Siberfx\SocialAutopost\Posts\LinkPost;
 use Siberfx\SocialAutopost\Support\Columns;
 use Throwable;
@@ -71,6 +72,26 @@ final class SocialManager
         }
 
         return $this->networks[$key] = app()->make($class);
+    }
+
+    /**
+     * The LinkedIn driver, typed, for what only LinkedIn offers: community()
+     * for comments, reactions and page statistics. Unlike network(), it
+     * refuses a switched-off network.
+     *
+     * @throws NetworkDisabled|UnknownNetwork
+     * @throws InvalidArgumentException When the network's class is not the LinkedIn driver.
+     */
+    public function linkedin(string $key = 'linkedin'): LinkedInNetwork
+    {
+        $this->requireEnabled($key);
+        $network = $this->network($key);
+
+        if (! $network instanceof LinkedInNetwork) {
+            throw new InvalidArgumentException("The [{$key}] network is not ".LinkedInNetwork::class.'.');
+        }
+
+        return $network;
     }
 
     /** @return Collection<int, string> The keys of the networks switched on. */

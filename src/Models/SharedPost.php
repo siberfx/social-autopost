@@ -31,6 +31,9 @@ final class SharedPost extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /** Posted, then deleted from LinkedIn through Social::linkedin()->community()->deletePost(). No longer counts as posted. */
+    public const STATUS_DELETED = 'deleted';
+
     public const TRIGGER_AUTO = 'auto';
 
     public const TRIGGER_MANUAL = 'manual';
